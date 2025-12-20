@@ -8,6 +8,10 @@ from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
 
+from .jenis_kendaraan_view import JenisKendaraanListView, JenisKendaraanDetailView
+from .kecamatan_view import KecamatanListView, KecamatanDetailView
+from .kelurahan_view import KelurahanListView, KelurahanDetailView
+
 
 class DashboardView(APIView):
     """

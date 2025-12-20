@@ -18,6 +18,10 @@ Dokumentasi lengkap untuk mengelola database Django, termasuk migrations dan imp
    - [Command Import](#command-import)
    - [Options dan Flags](#options-dan-flags)
    - [Troubleshooting Import](#troubleshooting-import)
+4. [Menghapus Data](#menghapus-data)
+   - [Metode 1: Django Shell](#metode-1-menggunakan-django-shell-recommended)
+   - [Metode 2: Management Command](#metode-2-menggunakan-management-command-quick)
+   - [Metode 3: SQL Langsung](#metode-3-menggunakan-sql-langsung-advanced)
 
 ---
 
@@ -42,6 +46,188 @@ pip install -r requirements.txt
 ### 3. Konfigurasi Database
 
 Pastikan file `.env` sudah dikonfigurasi dengan benar untuk koneksi database.
+
+#### Format File .env
+
+Buat file `.env` di root project dengan format berikut:
+
+```env
+# Database Configuration
+DB_NAME=TA_fera
+DB_USER=root
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=3309
+```
+
+**Catatan**:
+
+- Ganti `your_password` dengan password MySQL Anda
+- Port default MySQL adalah `3306`, tapi bisa berbeda (contoh: `3309`)
+- Pastikan database sudah dibuat sebelum menjalankan migrations
+
+#### Membuat Database
+
+Jika database belum ada, buat terlebih dahulu:
+
+```bash
+# Login ke MySQL
+mysql -u root -p -h localhost -P 3309
+
+# Atau jika menggunakan port default
+mysql -u root -p
+```
+
+Kemudian di MySQL shell:
+
+```sql
+CREATE DATABASE TA_fera CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+```
+
+#### Troubleshooting Koneksi Database
+
+##### Error: "Can't connect to server on 'localhost'"
+
+**Penyebab**: MySQL server tidak berjalan atau konfigurasi koneksi salah.
+
+**Solusi**:
+
+1. **Cek apakah MySQL server berjalan**:
+
+```bash
+# Untuk Linux
+sudo systemctl status mysql
+# atau
+sudo service mysql status
+
+# Untuk macOS
+brew services list | grep mysql
+
+# Untuk Windows
+# Cek di Services atau Task Manager
+```
+
+2. **Start MySQL server jika belum berjalan**:
+
+```bash
+# Linux
+sudo systemctl start mysql
+# atau
+sudo service mysql start
+
+# macOS
+brew services start mysql
+
+# Windows
+# Start dari Services atau menggunakan XAMPP/WAMP control panel
+```
+
+3. **Verifikasi koneksi manual**:
+
+```bash
+# Test koneksi dengan mysql client
+mysql -u root -p -h localhost -P 3309
+
+# Jika berhasil, berarti MySQL berjalan
+# Jika gagal, cek:
+# - Apakah port benar? (default 3306, tapi bisa berbeda)
+# - Apakah user dan password benar?
+# - Apakah firewall memblokir koneksi?
+```
+
+4. **Cek konfigurasi di file .env**:
+
+```bash
+# Pastikan file .env ada dan berisi:
+cat .env
+
+# Pastikan nilai sesuai dengan konfigurasi MySQL Anda
+# DB_HOST=localhost (atau 127.0.0.1)
+# DB_PORT=3309 (atau 3306 untuk default)
+# DB_USER=root (atau user MySQL Anda)
+# DB_PASSWORD=password_anda
+# DB_NAME=TA_fera
+```
+
+5. **Test koneksi dari Django**:
+
+```bash
+# Test koneksi database
+python manage.py check --database default
+
+# Atau coba migrate untuk test koneksi
+python manage.py migrate --plan
+```
+
+##### Error: "Access denied for user"
+
+**Penyebab**: Username atau password salah.
+
+**Solusi**:
+
+```bash
+# 1. Verifikasi user dan password di .env
+# 2. Test login manual
+mysql -u root -p -h localhost -P 3309
+
+# 3. Jika perlu, reset password MySQL
+# (Hati-hati, ini akan mengubah password)
+```
+
+##### Error: "Unknown database"
+
+**Penyebab**: Database belum dibuat.
+
+**Solusi**:
+
+```bash
+# Buat database (lihat bagian "Membuat Database" di atas)
+mysql -u root -p -h localhost -P 3309
+# CREATE DATABASE TA_fera;
+```
+
+##### Error: "Port 3309 connection refused"
+
+**Penyebab**: MySQL tidak berjalan di port tersebut atau port salah.
+
+**Solusi**:
+
+```bash
+# 1. Cek port yang digunakan MySQL
+sudo netstat -tlnp | grep mysql
+# atau
+sudo ss -tlnp | grep mysql
+
+# 2. Cek konfigurasi MySQL (my.cnf atau my.ini)
+# Lokasi file:
+# Linux: /etc/mysql/my.cnf atau /etc/my.cnf
+# macOS: /usr/local/etc/my.cnf
+# Windows: C:\ProgramData\MySQL\MySQL Server X.X\my.ini
+
+# 3. Pastikan port di .env sesuai dengan port MySQL
+```
+
+##### Error saat menggunakan `dbshell`
+
+Jika `python manage.py dbshell` gagal, gunakan alternatif:
+
+```bash
+# Gunakan mysql client langsung
+mysql -u root -p -h localhost -P 3309 TA_fera
+
+# Atau gunakan Django shell untuk query
+python manage.py shell
+```
+
+Di Django shell:
+
+```python
+from django.db import connection
+cursor = connection.cursor()
+cursor.execute("SELECT 1")
+cursor.fetchone()
+```
 
 ---
 
@@ -440,6 +626,234 @@ python manage.py import_excel data.xlsx \
 
 ---
 
+## 🗑️ Menghapus Data
+
+Sebelum melakukan import Excel ulang, Anda mungkin perlu menghapus seluruh data yang ada di database. Berikut adalah cara-cara untuk menghapus data.
+
+### ⚠️ PERINGATAN
+
+**HATI-HATI!** Menghapus data akan menghilangkan semua data secara permanen. Pastikan Anda:
+
+- ✅ Sudah membuat backup database jika data penting
+- ✅ Hanya melakukan ini di environment development/testing
+- ✅ Memahami bahwa operasi ini tidak dapat di-undo
+
+### Metode 1: Menggunakan Django Shell (Recommended)
+
+Cara paling aman dan terstruktur untuk menghapus data dengan memperhatikan foreign key constraints.
+
+```bash
+# Buka Django shell
+python manage.py shell
+```
+
+Kemudian jalankan script berikut di shell:
+
+```python
+from crud.models import (
+    TransaksiPajak, DataPajakKendaraan, KendaraanBermotor,
+    WajibPajak, Kelurahan, Kecamatan,
+    TypeKendaraan, MerekKendaraan, JenisKendaraan,
+    AgregatPendapatanBulanan, HasilPrediksi
+)
+
+# Hapus data dengan urutan yang benar (menghindari foreign key constraint errors)
+
+# 1. Hapus transaksi dan data terkait
+print("Menghapus TransaksiPajak...")
+TransaksiPajak.objects.all().delete()
+
+print("Menghapus DataPajakKendaraan...")
+DataPajakKendaraan.objects.all().delete()
+
+print("Menghapus AgregatPendapatanBulanan...")
+AgregatPendapatanBulanan.objects.all().delete()
+
+print("Menghapus HasilPrediksi...")
+HasilPrediksi.objects.all().delete()
+
+# 2. Hapus kendaraan
+print("Menghapus KendaraanBermotor...")
+KendaraanBermotor.objects.all().delete()
+
+# 3. Hapus wajib pajak
+print("Menghapus WajibPajak...")
+WajibPajak.objects.all().delete()
+
+# 4. Hapus kelurahan dan kecamatan
+print("Menghapus Kelurahan...")
+Kelurahan.objects.all().delete()
+
+print("Menghapus Kecamatan...")
+Kecamatan.objects.all().delete()
+
+# 5. Hapus type, merek, dan jenis kendaraan
+print("Menghapus TypeKendaraan...")
+TypeKendaraan.objects.all().delete()
+
+print("Menghapus MerekKendaraan...")
+MerekKendaraan.objects.all().delete()
+
+print("Menghapus JenisKendaraan...")
+JenisKendaraan.objects.all().delete()
+
+print("\n✅ Semua data berhasil dihapus!")
+```
+
+**Output yang Diharapkan:**
+
+```
+Menghapus TransaksiPajak...
+Menghapus DataPajakKendaraan...
+Menghapus AgregatPendapatanBulanan...
+Menghapus HasilPrediksi...
+Menghapus KendaraanBermotor...
+Menghapus WajibPajak...
+Menghapus Kelurahan...
+Menghapus Kecamatan...
+Menghapus TypeKendaraan...
+Menghapus MerekKendaraan...
+Menghapus JenisKendaraan...
+
+✅ Semua data berhasil dihapus!
+```
+
+### Metode 2: Menggunakan Management Command (Quick)
+
+Untuk kemudahan, Anda bisa membuat script Python sederhana atau menjalankan perintah langsung:
+
+```bash
+# Buat file clear_data.py
+cat > clear_data.py << 'EOF'
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fera.settings')
+django.setup()
+
+from crud.models import (
+    TransaksiPajak, DataPajakKendaraan, KendaraanBermotor,
+    WajibPajak, Kelurahan, Kecamatan,
+    TypeKendaraan, MerekKendaraan, JenisKendaraan,
+    AgregatPendapatanBulanan, HasilPrediksi
+)
+
+# Hapus dengan urutan yang benar
+TransaksiPajak.objects.all().delete()
+DataPajakKendaraan.objects.all().delete()
+AgregatPendapatanBulanan.objects.all().delete()
+HasilPrediksi.objects.all().delete()
+KendaraanBermotor.objects.all().delete()
+WajibPajak.objects.all().delete()
+Kelurahan.objects.all().delete()
+Kecamatan.objects.all().delete()
+TypeKendaraan.objects.all().delete()
+MerekKendaraan.objects.all().delete()
+JenisKendaraan.objects.all().delete()
+
+print("✅ Semua data berhasil dihapus!")
+EOF
+
+# Jalankan script
+python clear_data.py
+
+# Hapus file script setelah selesai
+rm clear_data.py
+```
+
+### Metode 3: Menggunakan SQL Langsung (Advanced)
+
+Jika Anda yakin dengan apa yang Anda lakukan, bisa menggunakan SQL langsung:
+
+```bash
+# Buka database shell
+python manage.py dbshell
+```
+
+Kemudian jalankan SQL berikut (untuk PostgreSQL):
+
+```sql
+-- Hapus data dengan urutan yang benar
+TRUNCATE TABLE transaksi_pajak CASCADE;
+TRUNCATE TABLE data_pajak_kendaraan CASCADE;
+TRUNCATE TABLE agregat_pendapatan_bulanan CASCADE;
+TRUNCATE TABLE hasil_prediksi CASCADE;
+TRUNCATE TABLE kendaraan_bermotor CASCADE;
+TRUNCATE TABLE wajib_pajak CASCADE;
+TRUNCATE TABLE kelurahan CASCADE;
+TRUNCATE TABLE kecamatan CASCADE;
+TRUNCATE TABLE type_kendaraan CASCADE;
+TRUNCATE TABLE merek_kendaraan CASCADE;
+TRUNCATE TABLE jenis_kendaraan CASCADE;
+```
+
+Atau untuk SQLite/MySQL:
+
+```sql
+-- Hapus dengan DELETE (lebih aman untuk foreign key)
+DELETE FROM transaksi_pajak;
+DELETE FROM data_pajak_kendaraan;
+DELETE FROM agregat_pendapatan_bulanan;
+DELETE FROM hasil_prediksi;
+DELETE FROM kendaraan_bermotor;
+DELETE FROM wajib_pajak;
+DELETE FROM kelurahan;
+DELETE FROM kecamatan;
+DELETE FROM type_kendaraan;
+DELETE FROM merek_kendaraan;
+DELETE FROM jenis_kendaraan;
+```
+
+### Verifikasi Data Terhapus
+
+Setelah menghapus data, verifikasi dengan:
+
+```bash
+python manage.py shell
+```
+
+```python
+from crud.models import (
+    TransaksiPajak, DataPajakKendaraan, KendaraanBermotor,
+    WajibPajak, Kelurahan, Kecamatan,
+    TypeKendaraan, MerekKendaraan, JenisKendaraan
+)
+
+# Cek jumlah data
+print(f"TransaksiPajak: {TransaksiPajak.objects.count()}")
+print(f"DataPajakKendaraan: {DataPajakKendaraan.objects.count()}")
+print(f"KendaraanBermotor: {KendaraanBermotor.objects.count()}")
+print(f"WajibPajak: {WajibPajak.objects.count()}")
+print(f"Kelurahan: {Kelurahan.objects.count()}")
+print(f"Kecamatan: {Kecamatan.objects.count()}")
+print(f"TypeKendaraan: {TypeKendaraan.objects.count()}")
+print(f"MerekKendaraan: {MerekKendaraan.objects.count()}")
+print(f"JenisKendaraan: {JenisKendaraan.objects.count()}")
+```
+
+Semua seharusnya menampilkan `0`.
+
+### Workflow Lengkap: Hapus Data + Import Baru
+
+```bash
+# 1. Hapus semua data (gunakan Metode 1 atau 2)
+python manage.py shell
+# ... jalankan script penghapusan data ...
+
+# 2. Verifikasi data sudah terhapus
+python manage.py shell
+# ... cek jumlah data ...
+
+# 3. Import data baru
+python manage.py import_excel data.xlsx --skip-incomplete --skip-errors
+
+# 4. Verifikasi data ter-import
+python manage.py shell
+# ... cek jumlah data yang baru ...
+```
+
+---
+
 ### Workflow Import Lengkap
 
 #### Skenario 1: Import Data Baru
@@ -447,13 +861,38 @@ python manage.py import_excel data.xlsx \
 ```bash
 # 1. Siapkan file Excel dengan format yang benar
 
-# 2. Test import dengan dry-run
+# 2. (Opsional) Hapus data lama jika ingin import ulang dari awal
+# Lihat section "Menghapus Data" di atas
+
+# 3. Test import dengan dry-run
 python manage.py import_excel data.xlsx --dry-run
 
-# 3. Jika hasil dry-run OK, import sebenarnya
+# 4. Jika hasil dry-run OK, import sebenarnya
 python manage.py import_excel data.xlsx --skip-incomplete --skip-errors
 
-# 4. Verifikasi data di database
+# 5. Verifikasi data di database
+python manage.py shell
+>>> from crud.models import KendaraanBermotor, TransaksiPajak
+>>> KendaraanBermotor.objects.count()
+>>> TransaksiPajak.objects.count()
+```
+
+#### Skenario 1a: Import Data Baru dengan Hapus Data Lama Terlebih Dahulu
+
+```bash
+# 1. Hapus semua data lama
+python manage.py shell
+# ... jalankan script penghapusan dari section "Menghapus Data" ...
+
+# 2. Siapkan file Excel dengan format yang benar
+
+# 3. Test import dengan dry-run
+python manage.py import_excel data.xlsx --dry-run
+
+# 4. Jika hasil dry-run OK, import sebenarnya
+python manage.py import_excel data.xlsx --skip-incomplete --skip-errors
+
+# 5. Verifikasi data di database
 python manage.py shell
 >>> from crud.models import KendaraanBermotor, TransaksiPajak
 >>> KendaraanBermotor.objects.count()
@@ -627,6 +1066,35 @@ python manage.py import_excel data.xlsx --dry-run
 
 ---
 
+## 🔧 Troubleshooting Umum
+
+### Masalah Koneksi Database
+
+Lihat section [Troubleshooting Koneksi Database](#troubleshooting-koneksi-database) di bagian Persiapan untuk solusi lengkap.
+
+### Masalah Migrations
+
+Lihat section [Troubleshooting Migrations](#troubleshooting-migrations) untuk masalah terkait migrations.
+
+### Masalah Import Data
+
+Lihat section [Troubleshooting Import](#troubleshooting-import) untuk masalah terkait import Excel.
+
+### Checklist Troubleshooting
+
+Sebelum mencari bantuan, pastikan Anda sudah:
+
+- ✅ Memeriksa error message dengan detail
+- ✅ Memverifikasi konfigurasi database di `.env`
+- ✅ Memastikan MySQL server berjalan
+- ✅ Memastikan database sudah dibuat
+- ✅ Memastikan semua dependencies terinstall (`pip install -r requirements.txt`)
+- ✅ Memastikan virtual environment aktif
+- ✅ Mencoba dengan `--dry-run` untuk test tanpa menyimpan data
+- ✅ Memeriksa log Django untuk detail error
+
+---
+
 ## 📞 Bantuan
 
 Jika mengalami masalah:
@@ -636,6 +1104,7 @@ Jika mengalami masalah:
 3. Gunakan `--dry-run` untuk test tanpa menyimpan data
 4. Cek log Django untuk detail error
 5. Pastikan semua dependencies terinstall dengan benar
+6. Verifikasi koneksi database dengan `python manage.py check --database default`
 
 ---
 

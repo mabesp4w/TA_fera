@@ -316,8 +316,60 @@ class Command(BaseCommand):
         
         # Clean nama - remove extra spaces
         nama_clean = str(nama).strip()
-        jenis, created = JenisKendaraan.objects.get_or_create(nama=nama_clean)
+        
+        # Get kategori from Excel or infer from nama
+        kategori = self._get_value(row, 'kategori') or self._get_value(row, 'kategori_kendaraan')
+        if not kategori:
+            # Infer kategori from nama
+            kategori = self._infer_kategori_from_nama(nama_clean)
+        
+        # Normalize kategori to uppercase
+        if kategori:
+            kategori = str(kategori).strip().upper()
+            # Map to valid choices
+            kategori_map = {
+                'MOTOR': 'MOTOR',
+                'SEPEDA MOTOR': 'MOTOR',
+                'MOBIL': 'MOBIL',
+                'JEEP': 'JEEP',
+                'TRUK': 'TRUK',
+                'TRUCK': 'TRUK',
+                'BUS': 'BUS',
+                'LAINNYA': 'LAINNYA',
+                'LAIN-LAIN': 'LAINNYA',
+            }
+            kategori = kategori_map.get(kategori, 'MOTOR')  # Default to MOTOR if not recognized
+        
+        jenis, created = JenisKendaraan.objects.get_or_create(
+            nama=nama_clean,
+            defaults={'kategori': kategori}
+        )
+        
+        # Update kategori if jenis sudah ada dan kategori berbeda
+        if not created and kategori and jenis.kategori != kategori:
+            jenis.kategori = kategori
+            jenis.save()
+        
         return jenis
+    
+    def _infer_kategori_from_nama(self, nama):
+        """Infer kategori kendaraan dari nama jenis"""
+        nama_lower = str(nama).lower()
+        
+        # Keywords untuk setiap kategori
+        if any(keyword in nama_lower for keyword in ['mobil', 'sedan', 'hatchback', 'suv', 'mpv', 'minibus', 'city car']):
+            return 'MOBIL'
+        elif any(keyword in nama_lower for keyword in ['jeep', 'jip']):
+            return 'JEEP'
+        elif any(keyword in nama_lower for keyword in ['truk', 'truck', 'pick up', 'pickup', 'double cabin']):
+            return 'TRUK'
+        elif any(keyword in nama_lower for keyword in ['bus', 'bis']):
+            return 'BUS'
+        elif any(keyword in nama_lower for keyword in ['motor', 'sepeda motor', 'skuter', 'scooter', 'moped']):
+            return 'MOTOR'
+        else:
+            # Default to MOTOR jika tidak bisa di-infer
+            return 'MOTOR'
 
     def _get_or_create_merek_kendaraan(self, row, skip_incomplete=False):
         """Get or create MerekKendaraan"""
@@ -358,7 +410,12 @@ class Command(BaseCommand):
         return type_kendaraan
 
     def _get_or_create_kendaraan(self, row, wajib_pajak, jenis, merek, type_kendaraan, stats, skip_incomplete=False):
-        """Get or create KendaraanBermotor"""
+        """
+        Get or create KendaraanBermotor
+        
+        Catatan: Jika no_polisi sudah ada, akan menggunakan kendaraan yang sama.
+        Ini memungkinkan multiple transaksi untuk kendaraan yang sama (dengan tahun/bulan berbeda).
+        """
         no_polisi = (
             self._get_value(row, 'no_polisi') or 
             self._get_value(row, 'nopol') or
@@ -459,7 +516,13 @@ class Command(BaseCommand):
             stats['created'] += 1
 
     def _get_or_create_transaksi(self, row, kendaraan, stats):
-        """Get or create TransaksiPajak"""
+        """
+        Get or create TransaksiPajak
+        
+        Catatan: Satu kendaraan dapat memiliki multiple transaksi dengan tahun/bulan berbeda.
+        Unique constraint: (kendaraan, tahun, bulan)
+        Untuk menambahkan transaksi baru pada kendaraan yang sama, gunakan tahun/bulan yang berbeda.
+        """
         tahun = (
             self._safe_int(row, 'tahun') or
             self._safe_int(row, 'tahun_transaksi')
