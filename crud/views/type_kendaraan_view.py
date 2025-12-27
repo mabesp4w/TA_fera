@@ -2,58 +2,57 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.core.paginator import Paginator
-from django.db.models import Q
 
-from crud.models import JenisKendaraan
-from crud.serializers.jenis_kendaraan_serializer import JenisKendaraanSerializer
+from crud.models import TypeKendaraan
+from crud.serializers.type_kendaraan_serializer import TypeKendaraanSerializer
 from crud.utils.response import APIResponse
 from crud.utils.permissions import IsAdmin
 
 
-class JenisKendaraanListView(APIView):
+class TypeKendaraanListView(APIView):
     """
-    API endpoint untuk list dan create JenisKendaraan
-    GET: List semua jenis kendaraan (dengan pagination dan search)
-    POST: Create jenis kendaraan baru
+    API endpoint untuk list dan create TypeKendaraan
+    GET: List semua type kendaraan (dengan pagination dan search)
+    POST: Create type kendaraan baru
     """
     permission_classes = [IsAuthenticated, IsAdmin]
     
     def get(self, request):
         """
-        Get list semua jenis kendaraan dengan pagination dan search
-        """ 
+        Get list semua type kendaraan dengan pagination dan search
+        """
         try:
             # Get query parameters
             page = request.query_params.get('page', 1)
             page_size = request.query_params.get('page_size', 10)
             search = request.query_params.get('search', '')
-            kategori = request.query_params.get('kategori', '')
+            merek_id = request.query_params.get('merek_id', '')
             
             # Query base
-            queryset = JenisKendaraan.objects.all()
+            queryset = TypeKendaraan.objects.select_related('merek').all()
             
             # Filter by search (nama)
             if search:
                 queryset = queryset.filter(nama__icontains=search)
             
-            # Filter by kategori
-            if kategori:
-                queryset = queryset.filter(kategori=kategori)
+            # Filter by merek
+            if merek_id:
+                queryset = queryset.filter(merek_id=merek_id)
             
             # Ordering
-            queryset = queryset.order_by('nama')
+            queryset = queryset.order_by('merek__nama', 'nama')
             
             # Pagination
             paginator = Paginator(queryset, page_size)
             page_obj = paginator.get_page(page)
             
             # Serialize data
-            serializer = JenisKendaraanSerializer(page_obj, many=True)
+            serializer = TypeKendaraanSerializer(page_obj, many=True)
             
             # Response dengan pagination info
             return APIResponse.paginated_success(
                 data=serializer.data,
-                message='Data jenis kendaraan berhasil diambil',
+                message='Data type kendaraan berhasil diambil',
                 pagination_data={
                     'page': page_obj.number,
                     'page_size': int(page_size),
@@ -66,23 +65,23 @@ class JenisKendaraanListView(APIView):
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengambil data jenis kendaraan',
+                message='Terjadi kesalahan saat mengambil data type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def post(self, request):
         """
-        Create jenis kendaraan baru
+        Create type kendaraan baru
         """
         try:
-            serializer = JenisKendaraanSerializer(data=request.data)
+            serializer = TypeKendaraanSerializer(data=request.data)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                type_kendaraan = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil dibuat',
+                    data=TypeKendaraanSerializer(type_kendaraan).data,
+                    message='Type kendaraan berhasil dibuat',
                     status_code=status.HTTP_201_CREATED
                 )
             else:
@@ -94,19 +93,19 @@ class JenisKendaraanListView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat membuat jenis kendaraan',
+                message='Terjadi kesalahan saat membuat type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
-class JenisKendaraanDetailView(APIView):
+class TypeKendaraanDetailView(APIView):
     """
-    API endpoint untuk detail, update, dan delete JenisKendaraan
-    GET: Get detail jenis kendaraan
-    PUT: Update jenis kendaraan
-    PATCH: Partial update jenis kendaraan
-    DELETE: Delete jenis kendaraan
+    API endpoint untuk detail, update, dan delete TypeKendaraan
+    GET: Get detail type kendaraan
+    PUT: Update type kendaraan
+    PATCH: Partial update type kendaraan
+    DELETE: Delete type kendaraan
     """
     permission_classes = [IsAuthenticated, IsAdmin]
     
@@ -115,56 +114,56 @@ class JenisKendaraanDetailView(APIView):
         Helper method untuk get object atau raise 404
         """
         try:
-            return JenisKendaraan.objects.get(pk=pk)
-        except JenisKendaraan.DoesNotExist:
+            return TypeKendaraan.objects.select_related('merek').get(pk=pk)
+        except TypeKendaraan.DoesNotExist:
             return None
     
     def get(self, request, pk):
         """
-        Get detail jenis kendaraan
+        Get detail type kendaraan
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            type_kendaraan = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not type_kendaraan:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Type kendaraan tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan)
+            serializer = TypeKendaraanSerializer(type_kendaraan)
             return APIResponse.success(
                 data=serializer.data,
-                message='Data jenis kendaraan berhasil diambil'
+                message='Data type kendaraan berhasil diambil'
             )
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengambil data jenis kendaraan',
+                message='Terjadi kesalahan saat mengambil data type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def put(self, request, pk):
         """
-        Update lengkap jenis kendaraan
+        Update lengkap type kendaraan
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            type_kendaraan = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not type_kendaraan:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Type kendaraan tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan, data=request.data)
+            serializer = TypeKendaraanSerializer(type_kendaraan, data=request.data)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                type_kendaraan = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil diupdate'
+                    data=TypeKendaraanSerializer(type_kendaraan).data,
+                    message='Type kendaraan berhasil diupdate'
                 )
             else:
                 return APIResponse.error(
@@ -175,31 +174,31 @@ class JenisKendaraanDetailView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengupdate jenis kendaraan',
+                message='Terjadi kesalahan saat mengupdate type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def patch(self, request, pk):
         """
-        Partial update jenis kendaraan
+        Partial update type kendaraan
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            type_kendaraan = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not type_kendaraan:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Type kendaraan tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan, data=request.data, partial=True)
+            serializer = TypeKendaraanSerializer(type_kendaraan, data=request.data, partial=True)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                type_kendaraan = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil diupdate'
+                    data=TypeKendaraanSerializer(type_kendaraan).data,
+                    message='Type kendaraan berhasil diupdate'
                 )
             else:
                 return APIResponse.error(
@@ -210,46 +209,47 @@ class JenisKendaraanDetailView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengupdate jenis kendaraan',
+                message='Terjadi kesalahan saat mengupdate type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def delete(self, request, pk):
         """
-        Delete jenis kendaraan
+        Delete type kendaraan
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            type_kendaraan = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not type_kendaraan:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Type kendaraan tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            # Cek apakah jenis kendaraan digunakan oleh kendaraan
+            # Cek apakah type kendaraan digunakan oleh kendaraan
             from crud.models import KendaraanBermotor
-            kendaraan_count = KendaraanBermotor.objects.filter(jenis=jenis_kendaraan).count()
+            kendaraan_count = KendaraanBermotor.objects.filter(type_kendaraan=type_kendaraan).count()
             
             if kendaraan_count > 0:
                 return APIResponse.error(
-                    message=f'Jenis kendaraan tidak dapat dihapus karena masih digunakan oleh {kendaraan_count} kendaraan',
+                    message=f'Type kendaraan tidak dapat dihapus karena masih digunakan oleh {kendaraan_count} kendaraan',
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
             
-            nama = jenis_kendaraan.nama
-            jenis_kendaraan.delete()
+            nama = type_kendaraan.nama
+            merek_nama = type_kendaraan.merek.nama
+            type_kendaraan.delete()
             
             return APIResponse.success(
                 data=None,
-                message=f'Jenis kendaraan "{nama}" berhasil dihapus',
+                message=f'Type kendaraan "{merek_nama} - {nama}" berhasil dihapus',
                 status_code=status.HTTP_200_OK
             )
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat menghapus jenis kendaraan',
+                message='Terjadi kesalahan saat menghapus type kendaraan',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

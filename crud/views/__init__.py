@@ -11,6 +11,25 @@ from datetime import timedelta
 from .jenis_kendaraan_view import JenisKendaraanListView, JenisKendaraanDetailView
 from .kecamatan_view import KecamatanListView, KecamatanDetailView
 from .kelurahan_view import KelurahanListView, KelurahanDetailView
+from .merek_kendaraan_view import MerekKendaraanListView, MerekKendaraanDetailView
+from .type_kendaraan_view import TypeKendaraanListView, TypeKendaraanDetailView
+from .wajib_pajak_view import WajibPajakListView, WajibPajakDetailView
+from .kendaraan_bermotor_view import KendaraanBermotorListView, KendaraanBermotorDetailView
+from .data_pajak_kendaraan_view import DataPajakKendaraanListView, DataPajakKendaraanDetailView
+from .transaksi_pajak_view import TransaksiPajakListView, TransaksiPajakDetailView
+from .agregat_pendapatan_bulanan_view import (
+    AgregatPendapatanBulananListView,
+    AgregatPendapatanBulananDetailView,
+    AgregatPendapatanBulananRegenerateView
+)
+from .hasil_prediksi_view import HasilPrediksiListView, HasilPrediksiDetailView
+from .prediksi_view import (
+    GeneratePrediksiView,
+    ComparePrediksiView,
+    PrediksiChartView,
+    PrediksiEvaluationView,
+    PrediksiTrendView
+)
 
 
 class DashboardView(APIView):

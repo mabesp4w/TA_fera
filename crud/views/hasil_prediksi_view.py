@@ -4,56 +4,66 @@ from rest_framework.permissions import IsAuthenticated
 from django.core.paginator import Paginator
 from django.db.models import Q
 
-from crud.models import JenisKendaraan
-from crud.serializers.jenis_kendaraan_serializer import JenisKendaraanSerializer
+from crud.models import HasilPrediksi
+from crud.serializers.hasil_prediksi_serializer import HasilPrediksiSerializer
 from crud.utils.response import APIResponse
 from crud.utils.permissions import IsAdmin
 
 
-class JenisKendaraanListView(APIView):
+class HasilPrediksiListView(APIView):
     """
-    API endpoint untuk list dan create JenisKendaraan
-    GET: List semua jenis kendaraan (dengan pagination dan search)
-    POST: Create jenis kendaraan baru
+    API endpoint untuk list dan create HasilPrediksi
+    GET: List semua hasil prediksi (dengan pagination dan search)
+    POST: Create hasil prediksi baru
     """
     permission_classes = [IsAuthenticated, IsAdmin]
     
     def get(self, request):
         """
-        Get list semua jenis kendaraan dengan pagination dan search
-        """ 
+        Get list semua hasil prediksi dengan pagination dan filter
+        """
         try:
             # Get query parameters
             page = request.query_params.get('page', 1)
             page_size = request.query_params.get('page_size', 10)
-            search = request.query_params.get('search', '')
-            kategori = request.query_params.get('kategori', '')
+            tahun_prediksi = request.query_params.get('tahun_prediksi', '')
+            bulan_prediksi = request.query_params.get('bulan_prediksi', '')
+            jenis_kendaraan_id = request.query_params.get('jenis_kendaraan_id', '')
+            metode = request.query_params.get('metode', '')
             
-            # Query base
-            queryset = JenisKendaraan.objects.all()
+            # Query base dengan select_related untuk optimasi
+            queryset = HasilPrediksi.objects.select_related('jenis_kendaraan').all()
             
-            # Filter by search (nama)
-            if search:
-                queryset = queryset.filter(nama__icontains=search)
+            # Filter by tahun_prediksi
+            if tahun_prediksi:
+                queryset = queryset.filter(tahun_prediksi=tahun_prediksi)
             
-            # Filter by kategori
-            if kategori:
-                queryset = queryset.filter(kategori=kategori)
+            # Filter by bulan_prediksi
+            if bulan_prediksi:
+                queryset = queryset.filter(bulan_prediksi=bulan_prediksi)
+            
+            # Filter by jenis_kendaraan
+            if jenis_kendaraan_id:
+                queryset = queryset.filter(jenis_kendaraan_id=jenis_kendaraan_id)
+            
+            # Filter by metode
+            if metode:
+                queryset = queryset.filter(metode=metode)
             
             # Ordering
-            queryset = queryset.order_by('nama')
+            queryset = queryset.order_by('-tahun_prediksi', '-bulan_prediksi', '-tanggal_prediksi')
             
             # Pagination
             paginator = Paginator(queryset, page_size)
             page_obj = paginator.get_page(page)
             
             # Serialize data
-            serializer = JenisKendaraanSerializer(page_obj, many=True)
+            serializer = HasilPrediksiSerializer(page_obj, many=True)
             
             # Response dengan pagination info
             return APIResponse.paginated_success(
                 data=serializer.data,
-                message='Data jenis kendaraan berhasil diambil',
+                message='Data hasil prediksi berhasil diambil',
                 pagination_data={
                     'page': page_obj.number,
                     'page_size': int(page_size),
@@ -66,23 +76,23 @@ class JenisKendaraanListView(APIView):
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengambil data jenis kendaraan',
+                message='Terjadi kesalahan saat mengambil data hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def post(self, request):
         """
-        Create jenis kendaraan baru
+        Create hasil prediksi baru
         """
         try:
-            serializer = JenisKendaraanSerializer(data=request.data)
+            serializer = HasilPrediksiSerializer(data=request.data)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                hasil_prediksi = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil dibuat',
+                    data=HasilPrediksiSerializer(hasil_prediksi).data,
+                    message='Hasil prediksi berhasil dibuat',
                     status_code=status.HTTP_201_CREATED
                 )
             else:
@@ -94,19 +104,19 @@ class JenisKendaraanListView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat membuat jenis kendaraan',
+                message='Terjadi kesalahan saat membuat hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
-class JenisKendaraanDetailView(APIView):
+class HasilPrediksiDetailView(APIView):
     """
-    API endpoint untuk detail, update, dan delete JenisKendaraan
-    GET: Get detail jenis kendaraan
-    PUT: Update jenis kendaraan
-    PATCH: Partial update jenis kendaraan
-    DELETE: Delete jenis kendaraan
+    API endpoint untuk detail, update, dan delete HasilPrediksi
+    GET: Get detail hasil prediksi
+    PUT: Update hasil prediksi
+    PATCH: Partial update hasil prediksi (untuk update nilai_aktual)
+    DELETE: Delete hasil prediksi
     """
     permission_classes = [IsAuthenticated, IsAdmin]
     
@@ -115,56 +125,56 @@ class JenisKendaraanDetailView(APIView):
         Helper method untuk get object atau raise 404
         """
         try:
-            return JenisKendaraan.objects.get(pk=pk)
-        except JenisKendaraan.DoesNotExist:
+            return HasilPrediksi.objects.select_related('jenis_kendaraan').get(pk=pk)
+        except HasilPrediksi.DoesNotExist:
             return None
     
     def get(self, request, pk):
         """
-        Get detail jenis kendaraan
+        Get detail hasil prediksi
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            hasil_prediksi = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not hasil_prediksi:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Hasil prediksi tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan)
+            serializer = HasilPrediksiSerializer(hasil_prediksi)
             return APIResponse.success(
                 data=serializer.data,
-                message='Data jenis kendaraan berhasil diambil'
+                message='Data hasil prediksi berhasil diambil'
             )
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengambil data jenis kendaraan',
+                message='Terjadi kesalahan saat mengambil data hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def put(self, request, pk):
         """
-        Update lengkap jenis kendaraan
+        Update lengkap hasil prediksi
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            hasil_prediksi = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not hasil_prediksi:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Hasil prediksi tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan, data=request.data)
+            serializer = HasilPrediksiSerializer(hasil_prediksi, data=request.data)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                hasil_prediksi = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil diupdate'
+                    data=HasilPrediksiSerializer(hasil_prediksi).data,
+                    message='Hasil prediksi berhasil diupdate'
                 )
             else:
                 return APIResponse.error(
@@ -175,31 +185,32 @@ class JenisKendaraanDetailView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengupdate jenis kendaraan',
+                message='Terjadi kesalahan saat mengupdate hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def patch(self, request, pk):
         """
-        Partial update jenis kendaraan
+        Partial update hasil prediksi
+        Berguna untuk update nilai_aktual setelah periode prediksi selesai
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            hasil_prediksi = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not hasil_prediksi:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Hasil prediksi tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            serializer = JenisKendaraanSerializer(jenis_kendaraan, data=request.data, partial=True)
+            serializer = HasilPrediksiSerializer(hasil_prediksi, data=request.data, partial=True)
             
             if serializer.is_valid():
-                jenis_kendaraan = serializer.save()
+                hasil_prediksi = serializer.save()
                 return APIResponse.success(
-                    data=JenisKendaraanSerializer(jenis_kendaraan).data,
-                    message='Jenis kendaraan berhasil diupdate'
+                    data=HasilPrediksiSerializer(hasil_prediksi).data,
+                    message='Hasil prediksi berhasil diupdate'
                 )
             else:
                 return APIResponse.error(
@@ -210,46 +221,37 @@ class JenisKendaraanDetailView(APIView):
                 
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat mengupdate jenis kendaraan',
+                message='Terjadi kesalahan saat mengupdate hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def delete(self, request, pk):
         """
-        Delete jenis kendaraan
+        Delete hasil prediksi
         """
         try:
-            jenis_kendaraan = self.get_object(pk)
+            hasil_prediksi = self.get_object(pk)
             
-            if not jenis_kendaraan:
+            if not hasil_prediksi:
                 return APIResponse.error(
-                    message='Jenis kendaraan tidak ditemukan',
+                    message='Hasil prediksi tidak ditemukan',
                     status_code=status.HTTP_404_NOT_FOUND
                 )
             
-            # Cek apakah jenis kendaraan digunakan oleh kendaraan
-            from crud.models import KendaraanBermotor
-            kendaraan_count = KendaraanBermotor.objects.filter(jenis=jenis_kendaraan).count()
-            
-            if kendaraan_count > 0:
-                return APIResponse.error(
-                    message=f'Jenis kendaraan tidak dapat dihapus karena masih digunakan oleh {kendaraan_count} kendaraan',
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
-            
-            nama = jenis_kendaraan.nama
-            jenis_kendaraan.delete()
+            metode = hasil_prediksi.get_metode_display()
+            periode = f"{hasil_prediksi.tahun_prediksi}-{hasil_prediksi.bulan_prediksi:02d}"
+            hasil_prediksi.delete()
             
             return APIResponse.success(
                 data=None,
-                message=f'Jenis kendaraan "{nama}" berhasil dihapus',
+                message=f'Hasil prediksi {metode} untuk periode {periode} berhasil dihapus',
                 status_code=status.HTTP_200_OK
             )
             
         except Exception as e:
             return APIResponse.error(
-                message='Terjadi kesalahan saat menghapus jenis kendaraan',
+                message='Terjadi kesalahan saat menghapus hasil prediksi',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
