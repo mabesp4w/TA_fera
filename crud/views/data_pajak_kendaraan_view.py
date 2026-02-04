@@ -127,7 +127,7 @@ class DataPajakKendaraanDetailView(APIView):
         """
         try:
             return DataPajakKendaraan.objects.select_related(
-                'kendaraan__merek', 'kendaraan__type_kendaraan'
+                'kendaraan__type_kendaraan', 'kendaraan__type_kendaraan__merek'
             ).get(pk=pk)
         except DataPajakKendaraan.DoesNotExist:
             return None

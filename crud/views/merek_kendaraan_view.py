@@ -232,9 +232,9 @@ class MerekKendaraanDetailView(APIView):
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Cek apakah merek digunakan oleh kendaraan
+            # Cek apakah merek digunakan oleh kendaraan (melalui type_kendaraan)
             from crud.models import KendaraanBermotor
-            kendaraan_count = KendaraanBermotor.objects.filter(merek=merek_kendaraan).count()
+            kendaraan_count = KendaraanBermotor.objects.filter(type_kendaraan__merek=merek_kendaraan).count()
             
             if kendaraan_count > 0:
                 return APIResponse.error(

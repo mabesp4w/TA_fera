@@ -35,14 +35,14 @@ class TransaksiPajakListView(APIView):
             
             # Query base dengan select_related untuk optimasi
             queryset = TransaksiPajak.objects.select_related(
-                'kendaraan__merek', 'kendaraan__type_kendaraan'
+                'kendaraan__type_kendaraan', 'kendaraan__type_kendaraan__merek'
             ).all()
             
             # Filter by search (no_polisi kendaraan)
             if search:
                 queryset = queryset.filter(
                     Q(kendaraan__no_polisi__icontains=search) |
-                    Q(kendaraan__merek__nama__icontains=search) |
+                    Q(kendaraan__type_kendaraan__merek__nama__icontains=search) |
                     Q(kendaraan__type_kendaraan__nama__icontains=search)
                 )
             
@@ -138,7 +138,7 @@ class TransaksiPajakDetailView(APIView):
         """
         try:
             return TransaksiPajak.objects.select_related(
-                'kendaraan__merek', 'kendaraan__type_kendaraan'
+                'kendaraan__type_kendaraan', 'kendaraan__type_kendaraan__merek'
             ).get(pk=pk)
         except TransaksiPajak.DoesNotExist:
             return None

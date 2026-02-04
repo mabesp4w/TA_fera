@@ -90,4 +90,4 @@ urlpatterns = [
     path('prediksi/chart/', PrediksiChartView.as_view(), name='prediksi-chart'),
     path('prediksi/evaluation/', PrediksiEvaluationView.as_view(), name='prediksi-evaluation'),
     path('prediksi/trend/', PrediksiTrendView.as_view(), name='prediksi-trend'),
-]
+    ]

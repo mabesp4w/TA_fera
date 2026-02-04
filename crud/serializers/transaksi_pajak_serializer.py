@@ -8,7 +8,7 @@ class TransaksiPajakSerializer(serializers.ModelSerializer):
     Serializer untuk TransaksiPajak
     """
     kendaraan_no_polisi = serializers.CharField(source='kendaraan.no_polisi', read_only=True)
-    kendaraan_merek_nama = serializers.CharField(source='kendaraan.merek.nama', read_only=True)
+    kendaraan_merek_nama = serializers.CharField(source='kendaraan.type_kendaraan.merek.nama', read_only=True)
     kendaraan_type_nama = serializers.CharField(source='kendaraan.type_kendaraan.nama', read_only=True)
     
     class Meta:

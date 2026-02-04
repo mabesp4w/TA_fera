@@ -141,7 +141,6 @@ class KendaraanBermotor(models.Model):
     
     # ForeignKey
     jenis = models.ForeignKey(JenisKendaraan, on_delete=models.PROTECT, related_name='kendaraan')
-    merek = models.ForeignKey(MerekKendaraan, on_delete=models.PROTECT, related_name='kendaraan')
     type_kendaraan = models.ForeignKey(TypeKendaraan, on_delete=models.PROTECT, related_name='kendaraan')
     wajib_pajak = models.ForeignKey(WajibPajak, on_delete=models.PROTECT, related_name='kendaraan')
     
@@ -187,12 +186,12 @@ class KendaraanBermotor(models.Model):
             models.Index(fields=['no_polisi']),
             models.Index(fields=['no_rangka']),
             models.Index(fields=['wajib_pajak', 'tahun_buat']),
-            models.Index(fields=['jenis', 'merek']),
+            models.Index(fields=['jenis', 'type_kendaraan']),
             models.Index(fields=['tahun_buat']),
         ]
     
     def __str__(self):
-        return f"{self.no_polisi} - {self.merek.nama} {self.type_kendaraan.nama}"
+        return f"{self.no_polisi} - {self.type_kendaraan.merek.nama} {self.type_kendaraan.nama}"
     
     @property
     def njkb_saat_ini(self):

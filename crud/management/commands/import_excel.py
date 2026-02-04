@@ -185,7 +185,7 @@ class Command(BaseCommand):
         
         # 5. Import/Create KendaraanBermotor
         kendaraan = self._get_or_create_kendaraan(
-            row, wajib_pajak, jenis, merek, type_kendaraan, stats, skip_incomplete
+            row, wajib_pajak, jenis, type_kendaraan, stats, skip_incomplete
         )
         
         # 6. Import/Create DataPajakKendaraan
@@ -409,7 +409,7 @@ class Command(BaseCommand):
         )
         return type_kendaraan
 
-    def _get_or_create_kendaraan(self, row, wajib_pajak, jenis, merek, type_kendaraan, stats, skip_incomplete=False):
+    def _get_or_create_kendaraan(self, row, wajib_pajak, jenis, type_kendaraan, stats, skip_incomplete=False):
         """
         Get or create KendaraanBermotor
         
@@ -463,7 +463,6 @@ class Command(BaseCommand):
                 'no_mesin': str(no_mesin),
                 'wajib_pajak': wajib_pajak,
                 'jenis': jenis,
-                'merek': merek,
                 'type_kendaraan': type_kendaraan,
                 'tahun_buat': tahun_buat or 2000,
                 'jml_cc': jml_cc,

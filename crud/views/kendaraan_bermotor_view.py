@@ -34,7 +34,7 @@ class KendaraanBermotorListView(APIView):
             
             # Query base dengan select_related untuk optimasi
             queryset = KendaraanBermotor.objects.select_related(
-                'jenis', 'merek', 'type_kendaraan', 'wajib_pajak'
+                'jenis', 'type_kendaraan', 'type_kendaraan__merek', 'wajib_pajak'
             ).all()
             
             # Filter by search (no_polisi, no_rangka, no_mesin, atau nama wajib pajak)
@@ -54,9 +54,9 @@ class KendaraanBermotorListView(APIView):
             if jenis_id:
                 queryset = queryset.filter(jenis_id=jenis_id)
             
-            # Filter by merek
+            # Filter by merek (melalui type_kendaraan)
             if merek_id:
-                queryset = queryset.filter(merek_id=merek_id)
+                queryset = queryset.filter(type_kendaraan__merek_id=merek_id)
             
             # Filter by wajib pajak
             if wajib_pajak_id:
@@ -138,7 +138,7 @@ class KendaraanBermotorDetailView(APIView):
         """
         try:
             return KendaraanBermotor.objects.select_related(
-                'jenis', 'merek', 'type_kendaraan', 'wajib_pajak'
+                'jenis', 'type_kendaraan', 'type_kendaraan__merek', 'wajib_pajak'
             ).get(pk=pk)
         except KendaraanBermotor.DoesNotExist:
             return None

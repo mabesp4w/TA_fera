@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from crud.models import KendaraanBermotor, JenisKendaraan, MerekKendaraan, TypeKendaraan, WajibPajak
+from crud.models import KendaraanBermotor, JenisKendaraan, TypeKendaraan, WajibPajak
 
 
 class KendaraanBermotorSerializer(serializers.ModelSerializer):
@@ -8,7 +8,7 @@ class KendaraanBermotorSerializer(serializers.ModelSerializer):
     """
     jenis_nama = serializers.CharField(source='jenis.nama', read_only=True)
     jenis_kategori = serializers.CharField(source='jenis.kategori', read_only=True)
-    merek_nama = serializers.CharField(source='merek.nama', read_only=True)
+    merek_nama = serializers.CharField(source='type_kendaraan.merek.nama', read_only=True)
     type_kendaraan_nama = serializers.CharField(source='type_kendaraan.nama', read_only=True)
     wajib_pajak_nama = serializers.CharField(source='wajib_pajak.nama', read_only=True)
     bbm_display = serializers.CharField(source='get_bbm_display', read_only=True)
@@ -18,7 +18,7 @@ class KendaraanBermotorSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'no_polisi', 'no_rangka', 'no_mesin',
             'jenis', 'jenis_nama', 'jenis_kategori',
-            'merek', 'merek_nama',
+            'merek_nama',
             'type_kendaraan', 'type_kendaraan_nama',
             'wajib_pajak', 'wajib_pajak_nama',
             'tahun_buat', 'jml_cc', 'bbm', 'bbm_display',
@@ -66,14 +66,6 @@ class KendaraanBermotorSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Jenis kendaraan harus dipilih.")
         if not JenisKendaraan.objects.filter(pk=value.pk).exists():
             raise serializers.ValidationError("Jenis kendaraan tidak ditemukan.")
-        return value
-    
-    def validate_merek(self, value):
-        """Validasi merek kendaraan harus ada"""
-        if not value:
-            raise serializers.ValidationError("Merek kendaraan harus dipilih.")
-        if not MerekKendaraan.objects.filter(pk=value.pk).exists():
-            raise serializers.ValidationError("Merek kendaraan tidak ditemukan.")
         return value
     
     def validate_type_kendaraan(self, value):

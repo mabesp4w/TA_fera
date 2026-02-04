@@ -82,11 +82,10 @@ class LoginView(APIView):
     def _generate_access_token(self, user, application):
         """
         Generate OAuth2 access token untuk user
+        Mengizinkan multiple token untuk user yang sama (multiple device login)
         """
-        # Hapus token lama jika ada
-        AccessToken.objects.filter(user=user, application=application).delete()
-        
-        # Buat token baru
+        # Buat token baru tanpa menghapus token lama
+        # Ini memungkinkan user login dari multiple device secara bersamaan
         expires = timezone.now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS)
         token = generate_token()
         
@@ -104,14 +103,24 @@ class LoginView(APIView):
 class LogoutView(APIView):
     """
     API endpoint untuk logout (menghapus token)
+    Hanya menghapus token dari device yang melakukan logout, bukan semua token user
     """
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
         from oauth2_provider.models import AccessToken
         
-        # Hapus token user yang sedang login
-        AccessToken.objects.filter(user=request.user).delete()
+        # Dapatkan token dari Authorization header
+        # Hanya hapus token yang digunakan untuk request ini, bukan semua token user
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token_string = auth_header.split(' ')[1]
+            # Hapus hanya token yang digunakan untuk request ini
+            AccessToken.objects.filter(token=token_string, user=request.user).delete()
+        else:
+            # Jika tidak ada token di header, hapus semua token user (fallback)
+            # Ini seharusnya tidak terjadi karena permission_classes = [IsAuthenticated]
+            AccessToken.objects.filter(user=request.user).delete()
         
         return APIResponse.success(
             message='Logout berhasil',
