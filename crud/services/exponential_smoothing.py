@@ -1,24 +1,28 @@
 """
 Implementasi algoritma Exponential Smoothing untuk prediksi
+Menggunakan statsmodels untuk optimasi parameter yang lebih baik (MLE)
+
 - Simple Exponential Smoothing (SES)
 - Double Exponential Smoothing (DES/Holt)
 - Triple Exponential Smoothing (TES/Holt-Winters)
 """
 import numpy as np
+import warnings
 from typing import List, Tuple, Optional
 from decimal import Decimal
-from scipy.optimize import minimize
+from statsmodels.tsa.holtwinters import ExponentialSmoothing as HoltWinters
 
 
 class SimpleExponentialSmoothing:
     """
     Simple Exponential Smoothing (SES)
     Cocok untuk data tanpa trend dan seasonality
+    Menggunakan statsmodels untuk optimasi parameter MLE
     """
     
     @staticmethod
     def predict(data: List[float], alpha: Optional[float] = None, 
-                optimize: bool = True) -> Tuple[float, float, dict]:
+                optimize: bool = True, steps: int = 1) -> Tuple[float, float, dict]:
         """
         Melakukan prediksi menggunakan Simple Exponential Smoothing
         
@@ -26,6 +30,7 @@ class SimpleExponentialSmoothing:
             data: List data historis
             alpha: Parameter smoothing (0-1), jika None akan dioptimasi
             optimize: Jika True, akan mencari alpha optimal
+            steps: Jumlah langkah ke depan yang diprediksi (default: 1)
         
         Returns:
             Tuple: (prediksi, alpha_optimal, info)
@@ -33,66 +38,57 @@ class SimpleExponentialSmoothing:
         if len(data) < 2:
             raise ValueError("Data historis minimal 2 periode")
         
-        data = np.array(data, dtype=float)
+        if steps < 1:
+            raise ValueError("Steps minimal 1")
         
-        # Optimasi alpha jika diperlukan
-        if optimize or alpha is None:
-            alpha_opt = SimpleExponentialSmoothing._optimize_alpha(data)
-        else:
-            alpha_opt = float(alpha)
-            if not 0 <= alpha_opt <= 1:
-                raise ValueError("Alpha harus antara 0 dan 1")
+        data_arr = np.array(data, dtype=float)
         
-        # Hitung prediksi
-        # Formula: F(t+1) = alpha * Y(t) + (1-alpha) * F(t)
-        # Initial: F(1) = Y(1)
-        forecast = np.zeros(len(data))
-        forecast[0] = data[0]
+        # Build model
+        model = HoltWinters(data_arr, trend=None, seasonal=None)
         
-        for i in range(1, len(data)):
-            forecast[i] = alpha_opt * data[i-1] + (1 - alpha_opt) * forecast[i-1]
+        # Fit model
+        fit_kwargs = {'optimized': optimize}
+        if alpha is not None:
+            fit_kwargs['smoothing_level'] = float(alpha)
+            fit_kwargs['optimized'] = False
         
-        # Prediksi untuk periode berikutnya
-        next_prediction = alpha_opt * data[-1] + (1 - alpha_opt) * forecast[-1]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            fit = model.fit(**fit_kwargs)
+        
+        alpha_opt = float(fit.params.get('smoothing_level', 0.5))
+        
+        # Forecast
+        forecast_future = fit.forecast(steps)
+        next_prediction = float(forecast_future[0])
+        future_forecasts = [float(f) for f in forecast_future]
+        
+        # Fitted values (in-sample 1-step ahead forecasts)
+        fitted = fit.fittedvalues
+        forecast_values = [float(f) for f in fitted]
         
         info = {
             'alpha': alpha_opt,
-            'forecast_values': forecast.tolist(),
+            'forecast_values': forecast_values,
+            'future_forecasts': future_forecasts,
+            'steps': steps,
             'method': 'SES'
         }
         
         return float(next_prediction), alpha_opt, info
-    
-    @staticmethod
-    def _optimize_alpha(data: np.ndarray) -> float:
-        """
-        Optimasi parameter alpha dengan meminimalkan SSE
-        """
-        def sse(alpha):
-            if not 0 <= alpha <= 1:
-                return np.inf
-            
-            forecast = np.zeros(len(data))
-            forecast[0] = data[0]
-            
-            for i in range(1, len(data)):
-                forecast[i] = alpha * data[i-1] + (1 - alpha) * forecast[i-1]
-            
-            return np.sum((data - forecast) ** 2)
-        
-        result = minimize(sse, x0=0.5, bounds=[(0, 1)], method='L-BFGS-B')
-        return float(result.x[0])
 
 
 class DoubleExponentialSmoothing:
     """
     Double Exponential Smoothing (DES) / Holt's Method
     Cocok untuk data dengan trend tapi tanpa seasonality
+    Menggunakan statsmodels untuk optimasi parameter MLE
     """
     
     @staticmethod
     def predict(data: List[float], alpha: Optional[float] = None,
-                beta: Optional[float] = None, optimize: bool = True) -> Tuple[float, float, float, dict]:
+                beta: Optional[float] = None, optimize: bool = True, 
+                steps: int = 1) -> Tuple[float, float, float, dict]:
         """
         Melakukan prediksi menggunakan Double Exponential Smoothing
         
@@ -101,6 +97,7 @@ class DoubleExponentialSmoothing:
             alpha: Parameter smoothing level (0-1)
             beta: Parameter smoothing trend (0-1)
             optimize: Jika True, akan mencari alpha dan beta optimal
+            steps: Jumlah langkah ke depan yang diprediksi (default: 1)
         
         Returns:
             Tuple: (prediksi, alpha_optimal, beta_optimal, info)
@@ -108,81 +105,76 @@ class DoubleExponentialSmoothing:
         if len(data) < 3:
             raise ValueError("Data historis minimal 3 periode untuk DES")
         
-        data = np.array(data, dtype=float)
+        if steps < 1:
+            raise ValueError("Steps minimal 1")
         
-        # Optimasi parameter jika diperlukan
-        if optimize or alpha is None or beta is None:
-            alpha_opt, beta_opt = DoubleExponentialSmoothing._optimize_params(data)
-        else:
-            alpha_opt = float(alpha)
-            beta_opt = float(beta)
-            if not (0 <= alpha_opt <= 1 and 0 <= beta_opt <= 1):
-                raise ValueError("Alpha dan beta harus antara 0 dan 1")
+        data_arr = np.array(data, dtype=float)
         
-        # Hitung level dan trend
-        level = np.zeros(len(data))
-        trend = np.zeros(len(data))
+        # Build model with additive trend
+        model = HoltWinters(data_arr, trend='add', seasonal=None)
         
-        # Initial values
-        level[0] = data[0]
-        trend[0] = data[1] - data[0] if len(data) > 1 else 0
+        # Fit model
+        fit_kwargs = {'optimized': optimize}
+        if alpha is not None:
+            fit_kwargs['smoothing_level'] = float(alpha)
+        if beta is not None:
+            fit_kwargs['smoothing_trend'] = float(beta)
+        if alpha is not None and beta is not None:
+            fit_kwargs['optimized'] = False
         
-        # Update level dan trend
-        for i in range(1, len(data)):
-            level[i] = alpha_opt * data[i] + (1 - alpha_opt) * (level[i-1] + trend[i-1])
-            trend[i] = beta_opt * (level[i] - level[i-1]) + (1 - beta_opt) * trend[i-1]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            fit = model.fit(**fit_kwargs)
         
-        # Prediksi untuk periode berikutnya
-        next_prediction = level[-1] + trend[-1]
+        alpha_opt = float(fit.params.get('smoothing_level', 0.5))
+        beta_opt = float(fit.params.get('smoothing_trend', 0.3))
+        
+        # Forecast
+        forecast_future = fit.forecast(steps)
+        next_prediction = float(forecast_future[0])
+        future_forecasts = [float(f) for f in forecast_future]
+        
+        # Fitted values
+        fitted = fit.fittedvalues
+        forecast_values = [float(f) for f in fitted]
+        
+        # Extract level and trend
+        level_values = [float(v) for v in fit.level]
+        trend_values = [float(v) for v in fit.trend]
         
         info = {
             'alpha': alpha_opt,
             'beta': beta_opt,
-            'level_values': level.tolist(),
-            'trend_values': trend.tolist(),
+            'level_values': level_values,
+            'trend_values': trend_values,
+            'forecast_values': forecast_values,
+            'future_forecasts': future_forecasts,
+            'steps': steps,
             'method': 'DES'
         }
         
         return float(next_prediction), alpha_opt, beta_opt, info
-    
-    @staticmethod
-    def _optimize_params(data: np.ndarray) -> Tuple[float, float]:
-        """
-        Optimasi parameter alpha dan beta
-        """
-        def sse(params):
-            alpha, beta = params
-            if not (0 <= alpha <= 1 and 0 <= beta <= 1):
-                return np.inf
-            
-            level = np.zeros(len(data))
-            trend = np.zeros(len(data))
-            level[0] = data[0]
-            trend[0] = data[1] - data[0] if len(data) > 1 else 0
-            
-            for i in range(1, len(data)):
-                level[i] = alpha * data[i] + (1 - alpha) * (level[i-1] + trend[i-1])
-                trend[i] = beta * (level[i] - level[i-1]) + (1 - beta) * trend[i-1]
-            
-            forecast = level[:-1] + trend[:-1]
-            return np.sum((data[1:] - forecast) ** 2)
-        
-        result = minimize(sse, x0=[0.5, 0.5], bounds=[(0, 1), (0, 1)], method='L-BFGS-B')
-        return float(result.x[0]), float(result.x[1])
 
 
 class TripleExponentialSmoothing:
     """
     Triple Exponential Smoothing (TES) / Holt-Winters Method
     Cocok untuk data dengan trend dan seasonality
+    Menggunakan statsmodels dengan dukungan multiplicative seasonal
     """
     
     @staticmethod
     def predict(data: List[float], seasonal_periods: int = 12,
                 alpha: Optional[float] = None, beta: Optional[float] = None,
-                gamma: Optional[float] = None, optimize: bool = True) -> Tuple[float, float, float, float, dict]:
+                gamma: Optional[float] = None, optimize: bool = True, 
+                steps: int = 1) -> Tuple[float, float, float, float, dict]:
         """
         Melakukan prediksi menggunakan Triple Exponential Smoothing
+        
+        Mencoba beberapa konfigurasi dan memilih yang terbaik:
+        1. Additive trend + Multiplicative seasonal (biasa terbaik untuk data bertumbuh)
+        2. Multiplicative trend + Multiplicative seasonal
+        3. Additive trend + Additive seasonal
         
         Args:
             data: List data historis (minimal 2 * seasonal_periods)
@@ -191,6 +183,7 @@ class TripleExponentialSmoothing:
             beta: Parameter smoothing trend (0-1)
             gamma: Parameter smoothing seasonal (0-1)
             optimize: Jika True, akan mencari parameter optimal
+            steps: Jumlah langkah ke depan yang diprediksi (default: 1)
         
         Returns:
             Tuple: (prediksi, alpha_optimal, beta_optimal, gamma_optimal, info)
@@ -198,127 +191,104 @@ class TripleExponentialSmoothing:
         if len(data) < 2 * seasonal_periods:
             raise ValueError(f"Data historis minimal {2 * seasonal_periods} periode untuk TES")
         
-        data = np.array(data, dtype=float)
+        if steps < 1:
+            raise ValueError("Steps minimal 1")
         
-        # Optimasi parameter jika diperlukan
-        if optimize or alpha is None or beta is None or gamma is None:
-            alpha_opt, beta_opt, gamma_opt = TripleExponentialSmoothing._optimize_params(
-                data, seasonal_periods
-            )
-        else:
-            alpha_opt = float(alpha)
-            beta_opt = float(beta)
-            gamma_opt = float(gamma)
-            if not (0 <= alpha_opt <= 1 and 0 <= beta_opt <= 1 and 0 <= gamma_opt <= 1):
-                raise ValueError("Alpha, beta, dan gamma harus antara 0 dan 1")
+        data_arr = np.array(data, dtype=float)
         
-        # Hitung level, trend, dan seasonal
-        level = np.zeros(len(data))
-        trend = np.zeros(len(data))
-        seasonal = np.zeros(len(data))
+        # Konfigurasi yang akan dicoba (urutan prioritas)
+        configs = [
+            {'trend': 'add', 'seasonal': 'mul', 'name': 'add+mul'},
+            {'trend': 'mul', 'seasonal': 'mul', 'name': 'mul+mul'},
+            {'trend': 'add', 'seasonal': 'add', 'name': 'add+add'},
+            {'trend': 'add', 'seasonal': 'mul', 'damped_trend': True, 'name': 'damped_add+mul'},
+        ]
         
-        # Initial seasonal values (rata-rata untuk setiap periode musiman)
-        seasonal_avg = np.zeros(seasonal_periods)
-        for i in range(seasonal_periods):
-            seasonal_avg[i] = np.mean([data[j] for j in range(i, len(data), seasonal_periods)])
+        # Jika alpha/beta/gamma diberikan manual, hanya gunakan 1 config
+        if alpha is not None and beta is not None and gamma is not None:
+            configs = [{'trend': 'add', 'seasonal': 'mul', 'name': 'manual'}]
         
-        # Normalize seasonal
-        seasonal_avg = seasonal_avg / np.mean(seasonal_avg)
+        best_fit = None
+        best_sse = float('inf')
+        best_config_name = ''
         
-        # Initial values
-        level[0] = data[0] / seasonal_avg[0]
-        trend[0] = (data[1] / seasonal_avg[1] - data[0] / seasonal_avg[0]) if len(data) > 1 else 0
-        
-        # Update level, trend, dan seasonal
-        for i in range(len(data)):
-            if i == 0:
-                seasonal[i] = seasonal_avg[i % seasonal_periods]
-            else:
-                m = i % seasonal_periods
-                if i < seasonal_periods:
-                    level[i] = alpha_opt * (data[i] / seasonal_avg[m]) + (1 - alpha_opt) * (level[i-1] + trend[i-1])
-                else:
-                    level[i] = alpha_opt * (data[i] / seasonal[i-seasonal_periods]) + (1 - alpha_opt) * (level[i-1] + trend[i-1])
+        for config in configs:
+            try:
+                config_name = config.pop('name')
+                model = HoltWinters(
+                    data_arr, 
+                    seasonal_periods=seasonal_periods,
+                    **config
+                )
                 
-                trend[i] = beta_opt * (level[i] - level[i-1]) + (1 - beta_opt) * trend[i-1]
+                fit_kwargs = {'optimized': optimize}
+                if alpha is not None:
+                    fit_kwargs['smoothing_level'] = float(alpha)
+                if beta is not None:
+                    fit_kwargs['smoothing_trend'] = float(beta)
+                if gamma is not None:
+                    fit_kwargs['smoothing_seasonal'] = float(gamma)
+                if alpha is not None and beta is not None and gamma is not None:
+                    fit_kwargs['optimized'] = False
                 
-                if i >= seasonal_periods:
-                    seasonal[i] = gamma_opt * (data[i] / level[i]) + (1 - gamma_opt) * seasonal[i-seasonal_periods]
-                else:
-                    seasonal[i] = seasonal_avg[m]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    fit = model.fit(**fit_kwargs)
+                
+                # Hitung SSE (Sum of Squared Errors) untuk membandingkan konfigurasi
+                fitted = fit.fittedvalues
+                residuals = data_arr - fitted
+                sse = float(np.sum(residuals[seasonal_periods:] ** 2))
+                
+                if sse < best_sse:
+                    best_sse = sse
+                    best_fit = fit
+                    best_config_name = config_name
+                    
+                config['name'] = config_name
+            except Exception:
+                config['name'] = config.get('name', config_name)
+                continue
         
-        # Prediksi untuk periode berikutnya
-        h = 1  # horizon prediksi
-        m = (len(data) + h - 1) % seasonal_periods
-        next_prediction = (level[-1] + h * trend[-1]) * seasonal[-seasonal_periods + m]
+        if best_fit is None:
+            raise ValueError("Tidak dapat membangun model TES untuk data ini")
+        
+        fit = best_fit
+        alpha_opt = float(fit.params.get('smoothing_level', 0.5))
+        beta_opt = float(fit.params.get('smoothing_trend', 0.3))
+        gamma_opt = float(fit.params.get('smoothing_seasonal', 0.2))
+        
+        # Forecast
+        forecast_future = fit.forecast(steps)
+        next_prediction = float(forecast_future[0])
+        future_forecasts = [float(f) for f in forecast_future]
+        
+        # Ensure predictions are positive
+        future_forecasts = [max(0.0, f) for f in future_forecasts]
+        next_prediction = max(0.0, next_prediction)
+        
+        # Fitted values
+        fitted = fit.fittedvalues
+        forecast_values = [float(f) for f in fitted]
+        
+        # Extract components
+        level_values = [float(v) for v in fit.level]
+        trend_values = [float(v) for v in fit.trend]
+        seasonal_values = [float(v) for v in fit.season]
         
         info = {
             'alpha': alpha_opt,
             'beta': beta_opt,
             'gamma': gamma_opt,
             'seasonal_periods': seasonal_periods,
-            'level_values': level.tolist(),
-            'trend_values': trend.tolist(),
-            'seasonal_values': seasonal.tolist(),
-            'method': 'TES'
+            'level_values': level_values,
+            'trend_values': trend_values,
+            'seasonal_values': seasonal_values,
+            'forecast_values': forecast_values,
+            'future_forecasts': future_forecasts,
+            'steps': steps,
+            'method': 'TES',
+            'best_config': best_config_name,
         }
         
         return float(next_prediction), alpha_opt, beta_opt, gamma_opt, info
-    
-    @staticmethod
-    def _optimize_params(data: np.ndarray, seasonal_periods: int) -> Tuple[float, float, float]:
-        """
-        Optimasi parameter alpha, beta, dan gamma
-        """
-        def sse(params):
-            alpha, beta, gamma = params
-            if not (0 <= alpha <= 1 and 0 <= beta <= 1 and 0 <= gamma <= 1):
-                return np.inf
-            
-            try:
-                level = np.zeros(len(data))
-                trend = np.zeros(len(data))
-                seasonal = np.zeros(len(data))
-                
-                # Initial seasonal
-                seasonal_avg = np.zeros(seasonal_periods)
-                for i in range(seasonal_periods):
-                    seasonal_avg[i] = np.mean([data[j] for j in range(i, len(data), seasonal_periods)])
-                seasonal_avg = seasonal_avg / np.mean(seasonal_avg)
-                
-                level[0] = data[0] / seasonal_avg[0]
-                trend[0] = (data[1] / seasonal_avg[1] - data[0] / seasonal_avg[0]) if len(data) > 1 else 0
-                
-                for i in range(len(data)):
-                    m = i % seasonal_periods
-                    if i == 0:
-                        seasonal[i] = seasonal_avg[m]
-                    else:
-                        if i < seasonal_periods:
-                            level[i] = alpha * (data[i] / seasonal_avg[m]) + (1 - alpha) * (level[i-1] + trend[i-1])
-                        else:
-                            level[i] = alpha * (data[i] / seasonal[i-seasonal_periods]) + (1 - alpha) * (level[i-1] + trend[i-1])
-                        
-                        trend[i] = beta * (level[i] - level[i-1]) + (1 - beta) * trend[i-1]
-                        
-                        if i >= seasonal_periods:
-                            seasonal[i] = gamma * (data[i] / level[i]) + (1 - gamma) * seasonal[i-seasonal_periods]
-                        else:
-                            seasonal[i] = seasonal_avg[m]
-                
-                # Calculate forecast and SSE
-                forecast = np.zeros(len(data))
-                for i in range(len(data)):
-                    m = i % seasonal_periods
-                    if i < seasonal_periods:
-                        forecast[i] = level[i] * seasonal_avg[m]
-                    else:
-                        forecast[i] = (level[i-seasonal_periods] + trend[i-seasonal_periods]) * seasonal[i-seasonal_periods]
-                
-                return np.sum((data - forecast) ** 2)
-            except:
-                return np.inf
-        
-        result = minimize(sse, x0=[0.5, 0.5, 0.5], bounds=[(0, 1), (0, 1), (0, 1)], method='L-BFGS-B')
-        return float(result.x[0]), float(result.x[1]), float(result.x[2])
-

@@ -117,6 +117,7 @@ class GeneratePrediksiView(APIView):
                 mape=result.get('mape'),
                 mae=result.get('mae'),
                 rmse=result.get('rmse'),
+                nilai_aktual=result.get('nilai_aktual'),
                 data_training_dari=result['data_training_dari'],
                 data_training_sampai=result['data_training_sampai'],
                 jumlah_data_training=result['jumlah_data_training'],

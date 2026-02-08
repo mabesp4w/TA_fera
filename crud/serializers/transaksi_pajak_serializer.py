@@ -10,11 +10,14 @@ class TransaksiPajakSerializer(serializers.ModelSerializer):
     kendaraan_no_polisi = serializers.CharField(source='kendaraan.no_polisi', read_only=True)
     kendaraan_merek_nama = serializers.CharField(source='kendaraan.type_kendaraan.merek.nama', read_only=True)
     kendaraan_type_nama = serializers.CharField(source='kendaraan.type_kendaraan.nama', read_only=True)
+    kendaraan_jenis_nama = serializers.CharField(source='kendaraan.jenis.nama', read_only=True)
+    kendaraan_jenis_kategori = serializers.CharField(source='kendaraan.jenis.kategori', read_only=True)
     
     class Meta:
         model = TransaksiPajak
         fields = [
             'id', 'kendaraan', 'kendaraan_no_polisi', 'kendaraan_merek_nama', 'kendaraan_type_nama',
+            'kendaraan_jenis_nama', 'kendaraan_jenis_kategori',
             'tahun', 'bulan', 'tgl_pajak',
             'jml_tahun_bayar', 'jml_bulan_bayar', 'tgl_bayar',
             # PKB
@@ -34,7 +37,8 @@ class TransaksiPajakSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'total_bayar', 'created_at', 'updated_at',
-            'kendaraan_no_polisi', 'kendaraan_merek_nama', 'kendaraan_type_nama'
+            'kendaraan_no_polisi', 'kendaraan_merek_nama', 'kendaraan_type_nama',
+            'kendaraan_jenis_nama', 'kendaraan_jenis_kategori'
         ]
     
     def validate_kendaraan(self, value):

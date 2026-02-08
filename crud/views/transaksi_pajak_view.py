@@ -29,13 +29,16 @@ class TransaksiPajakListView(APIView):
             page_size = request.query_params.get('page_size', 10)
             search = request.query_params.get('search', '')
             kendaraan_id = request.query_params.get('kendaraan_id', '')
+            jenis_kendaraan_id = request.query_params.get('jenis_kendaraan_id', '')
             no_polisi = request.query_params.get('no_polisi', '')
             tahun = request.query_params.get('tahun', '')
             bulan = request.query_params.get('bulan', '')
             
             # Query base dengan select_related untuk optimasi
             queryset = TransaksiPajak.objects.select_related(
-                'kendaraan__type_kendaraan', 'kendaraan__type_kendaraan__merek'
+                'kendaraan__type_kendaraan', 
+                'kendaraan__type_kendaraan__merek',
+                'kendaraan__jenis'
             ).all()
             
             # Filter by search (no_polisi kendaraan)
@@ -50,17 +53,29 @@ class TransaksiPajakListView(APIView):
             if kendaraan_id:
                 queryset = queryset.filter(kendaraan_id=kendaraan_id)
             
+            # Filter by jenis_kendaraan_id
+            if jenis_kendaraan_id:
+                queryset = queryset.filter(kendaraan__jenis_id=jenis_kendaraan_id)
+            
             # Filter by no_polisi
             if no_polisi:
                 queryset = queryset.filter(kendaraan__no_polisi__icontains=no_polisi)
             
-            # Filter by tahun
+            # Filter by tahun (dengan konversi ke integer)
             if tahun:
-                queryset = queryset.filter(tahun=tahun)
+                try:
+                    tahun_int = int(tahun)
+                    queryset = queryset.filter(tahun=tahun_int)
+                except (ValueError, TypeError):
+                    pass
             
-            # Filter by bulan
+            # Filter by bulan (dengan konversi ke integer)
             if bulan:
-                queryset = queryset.filter(bulan=bulan)
+                try:
+                    bulan_int = int(bulan)
+                    queryset = queryset.filter(bulan=bulan_int)
+                except (ValueError, TypeError):
+                    pass
             
             # Ordering
             queryset = queryset.order_by('-tahun', '-bulan', '-created_at')
@@ -138,7 +153,9 @@ class TransaksiPajakDetailView(APIView):
         """
         try:
             return TransaksiPajak.objects.select_related(
-                'kendaraan__type_kendaraan', 'kendaraan__type_kendaraan__merek'
+                'kendaraan__type_kendaraan', 
+                'kendaraan__type_kendaraan__merek',
+                'kendaraan__jenis'
             ).get(pk=pk)
         except TransaksiPajak.DoesNotExist:
             return None
@@ -265,6 +282,47 @@ class TransaksiPajakDetailView(APIView):
         except Exception as e:
             return APIResponse.error(
                 message='Terjadi kesalahan saat menghapus transaksi pajak',
+                errors=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TransaksiPajakFilterOptionsView(APIView):
+    """
+    API endpoint untuk mendapatkan filter options (tahun dan bulan)
+    GET: Get list tahun dan bulan yang tersedia di database
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+    
+    def get(self, request):
+        """
+        Get filter options untuk transaksi pajak
+        """
+        try:
+            # Get unique tahun yang tersedia di database
+            tahun_list = TransaksiPajak.objects.values_list('tahun', flat=True).distinct().order_by('-tahun')
+            tahun_options = [{'value': t, 'label': str(t)} for t in tahun_list]
+            
+            # Get unique bulan yang tersedia di database
+            bulan_list = TransaksiPajak.objects.values_list('bulan', flat=True).distinct().order_by('bulan')
+            bulan_names = {
+                1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+                5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+                9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+            }
+            bulan_options = [{'value': b, 'label': bulan_names.get(b, str(b))} for b in bulan_list]
+            
+            return APIResponse.success(
+                data={
+                    'tahun_options': tahun_options,
+                    'bulan_options': bulan_options
+                },
+                message='Filter options berhasil diambil'
+            )
+            
+        except Exception as e:
+            return APIResponse.error(
+                message='Terjadi kesalahan saat mengambil filter options',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

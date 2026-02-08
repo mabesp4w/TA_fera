@@ -19,5 +19,4 @@ class AgregatPendapatanBulananSerializer(serializers.ModelSerializer):
             'jumlah_transaksi', 'jumlah_kendaraan',
             'tanggal_agregasi'
         ]
-        read_only_fields = '__all__'  # Semua field read-only
 

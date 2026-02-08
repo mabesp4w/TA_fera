@@ -22,11 +22,17 @@ from .type_kendaraan_view import TypeKendaraanListView, TypeKendaraanDetailView
 from .wajib_pajak_view import WajibPajakListView, WajibPajakDetailView
 from .kendaraan_bermotor_view import KendaraanBermotorListView, KendaraanBermotorDetailView
 from .data_pajak_kendaraan_view import DataPajakKendaraanListView, DataPajakKendaraanDetailView
-from .transaksi_pajak_view import TransaksiPajakListView, TransaksiPajakDetailView
+from .transaksi_pajak_view import (
+    TransaksiPajakListView,
+    TransaksiPajakDetailView,
+    TransaksiPajakFilterOptionsView
+)
 from .agregat_pendapatan_bulanan_view import (
     AgregatPendapatanBulananListView,
     AgregatPendapatanBulananDetailView,
-    AgregatPendapatanBulananRegenerateView
+    AgregatPendapatanBulananRegenerateView,
+    AgregatPendapatanBulananFilterOptionsView,
+    AgregatPendapatanBulananSummaryView
 )
 from .hasil_prediksi_view import HasilPrediksiListView, HasilPrediksiDetailView
 from .prediksi_view import (
@@ -35,6 +41,11 @@ from .prediksi_view import (
     PrediksiChartView,
     PrediksiEvaluationView,
     PrediksiTrendView
+)
+from .laporan_total_pajak_view import (
+    LaporanTotalPajakView,
+    LaporanTotalPajakSummaryView,
+    LaporanTotalPajakFilterOptionsView
 )
 
 
