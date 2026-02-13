@@ -38,9 +38,7 @@ from .hasil_prediksi_view import HasilPrediksiListView, HasilPrediksiDetailView
 from .prediksi_view import (
     GeneratePrediksiView,
     ComparePrediksiView,
-    PrediksiChartView,
-    PrediksiEvaluationView,
-    PrediksiTrendView
+    HybridPrediksiView
 )
 from .laporan_total_pajak_view import (
     LaporanTotalPajakView,

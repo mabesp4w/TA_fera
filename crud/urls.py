@@ -30,9 +30,7 @@ from .views import (
     HasilPrediksiDetailView,
     GeneratePrediksiView,
     ComparePrediksiView,
-    PrediksiChartView,
-    PrediksiEvaluationView,
-    PrediksiTrendView,
+    HybridPrediksiView,
     LaporanTotalPajakView,
     LaporanTotalPajakSummaryView,
     LaporanTotalPajakFilterOptionsView,
@@ -96,9 +94,7 @@ urlpatterns = [
     # Prediksi Endpoints
     path('prediksi/generate/', GeneratePrediksiView.as_view(), name='prediksi-generate'),
     path('prediksi/compare/', ComparePrediksiView.as_view(), name='prediksi-compare'),
-    path('prediksi/chart/', PrediksiChartView.as_view(), name='prediksi-chart'),
-    path('prediksi/evaluation/', PrediksiEvaluationView.as_view(), name='prediksi-evaluation'),
-    path('prediksi/trend/', PrediksiTrendView.as_view(), name='prediksi-trend'),
+    path('prediksi/hybrid/generate/', HybridPrediksiView.as_view(), name='prediksi-hybrid-generate'),
     
     # Laporan Total Pajak
     path('laporan-total-pajak/', LaporanTotalPajakView.as_view(), name='laporan-total-pajak'),
