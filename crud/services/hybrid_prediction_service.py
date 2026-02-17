@@ -109,13 +109,13 @@ class HybridPredictionService:
         
         # Hitung MAPE sederhana (prediksi moving average vs aktual)
         values = [float(d.total_pendapatan) for d in data]
-        
+
         # Use simple method: prediksi tahun ini = tahun lalu
         mape_values = []
         for i in range(1, len(values)):
-            prediksi = values[i-1]  # Tahun lalu
-            aktual = values[i]      # Tahun ini
-            error_pct = abs(prediksi - aktual) / aktual * 100
+            prediksi = float(values[i-1])  # Tahun lalu
+            aktual = float(values[i])      # Tahun ini
+            error_pct = abs(prediksi - aktual) / aktual * 100 if aktual > 0 else 0
             mape_values.append(error_pct)
         
         return float(np.mean(mape_values)) if mape_values else None
@@ -266,10 +266,13 @@ class HybridPredictionService:
         )
         
         if actual_value is not None:
-            error_abs = abs(final_prediction - actual_value)
-            error_pct = (error_abs / actual_value * 100) if actual_value > 0 else 0
-            
-            result['nilai_aktual'] = actual_value
+            # Konversi ke float untuk menghindari error Decimal - float
+            actual_float = float(actual_value)
+            final_prediction_float = float(final_prediction)
+            error_abs = abs(final_prediction_float - actual_float)
+            error_pct = (error_abs / actual_float * 100) if actual_float > 0 else 0
+
+            result['nilai_aktual'] = actual_float
             result['error_absolut'] = error_abs
             result['error_persentase'] = error_pct
             result['akurasi'] = 100 - error_pct

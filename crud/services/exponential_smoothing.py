@@ -236,7 +236,7 @@ class TripleExponentialSmoothing:
                     fit = model.fit(**fit_kwargs)
                 
                 # Hitung SSE (Sum of Squared Errors) untuk membandingkan konfigurasi
-                fitted = fit.fittedvalues
+                fitted = np.array([float(v) for v in fit.fittedvalues])
                 residuals = data_arr - fitted
                 sse = float(np.sum(residuals[seasonal_periods:] ** 2))
                 

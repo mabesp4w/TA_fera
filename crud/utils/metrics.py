@@ -22,9 +22,10 @@ def calculate_mape(actual: List[float], predicted: List[float]) -> float:
     
     if len(actual) == 0:
         return 0.0
-    
-    actual = np.array(actual)
-    predicted = np.array(predicted)
+
+    # Konversi ke float untuk menghindari error Decimal - float
+    actual = np.array([float(x) for x in actual])
+    predicted = np.array([float(x) for x in predicted])
     
     # Hindari division by zero
     mask = actual != 0
@@ -53,9 +54,10 @@ def calculate_mae(actual: List[float], predicted: List[float]) -> float:
     
     if len(actual) == 0:
         return 0.0
-    
-    actual = np.array(actual)
-    predicted = np.array(predicted)
+
+    # Konversi ke float untuk menghindari error Decimal - float
+    actual = np.array([float(x) for x in actual])
+    predicted = np.array([float(x) for x in predicted])
     
     mae = np.mean(np.abs(actual - predicted))
     
@@ -78,9 +80,10 @@ def calculate_rmse(actual: List[float], predicted: List[float]) -> float:
     
     if len(actual) == 0:
         return 0.0
-    
-    actual = np.array(actual)
-    predicted = np.array(predicted)
+
+    # Konversi ke float untuk menghindari error Decimal - float
+    actual = np.array([float(x) for x in actual])
+    predicted = np.array([float(x) for x in predicted])
     
     mse = np.mean((actual - predicted) ** 2)
     rmse = np.sqrt(mse)

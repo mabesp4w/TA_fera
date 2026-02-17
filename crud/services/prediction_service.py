@@ -258,9 +258,12 @@ class PredictionService:
         }
         
         if actual_value is not None:
-            error_aktual = abs((actual_value - prediction) / actual_value) * 100
-            debug_info['actual_value'] = actual_value
-            debug_info['prediction'] = prediction
+            # Konversi ke float untuk menghindari error Decimal - float
+            actual_float = float(actual_value)
+            prediction_float = float(prediction)
+            error_aktual = abs((actual_float - prediction_float) / actual_float) * 100
+            debug_info['actual_value'] = actual_float
+            debug_info['prediction'] = prediction_float
             debug_info['error_vs_actual'] = error_aktual
         
         # Determine date range
@@ -354,9 +357,12 @@ class PredictionService:
         }
         
         if actual_value is not None:
-            error_aktual = abs((actual_value - prediction) / actual_value) * 100
-            debug_info['actual_value'] = actual_value
-            debug_info['prediction'] = prediction
+            # Konversi ke float untuk menghindari error Decimal - float
+            actual_float = float(actual_value)
+            prediction_float = float(prediction)
+            error_aktual = abs((actual_float - prediction_float) / actual_float) * 100
+            debug_info['actual_value'] = actual_float
+            debug_info['prediction'] = prediction_float
             debug_info['error_vs_actual'] = error_aktual
         
         # Determine date range
@@ -464,9 +470,12 @@ class PredictionService:
         }
         
         if actual_value is not None:
-            error_aktual = abs((actual_value - prediction) / actual_value) * 100
-            debug_info['actual_value'] = actual_value
-            debug_info['prediction'] = prediction
+            # Konversi ke float untuk menghindari error Decimal - float
+            actual_float = float(actual_value)
+            prediction_float = float(prediction)
+            error_aktual = abs((actual_float - prediction_float) / actual_float) * 100
+            debug_info['actual_value'] = actual_float
+            debug_info['prediction'] = prediction_float
             debug_info['error_vs_actual'] = error_aktual
         
         # Determine date range

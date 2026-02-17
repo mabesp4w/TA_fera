@@ -21,6 +21,7 @@ from .views import (
     TransaksiPajakListView,
     TransaksiPajakDetailView,
     TransaksiPajakFilterOptionsView,
+    TransaksiPajakBulkDeleteView,
     AgregatPendapatanBulananListView,
     AgregatPendapatanBulananDetailView,
     AgregatPendapatanBulananRegenerateView,
@@ -31,9 +32,6 @@ from .views import (
     GeneratePrediksiView,
     ComparePrediksiView,
     HybridPrediksiView,
-    LaporanTotalPajakView,
-    LaporanTotalPajakSummaryView,
-    LaporanTotalPajakFilterOptionsView,
 )
 
 router = DefaultRouter()
@@ -79,6 +77,7 @@ urlpatterns = [
     path('transaksi-pajak/', TransaksiPajakListView.as_view(), name='transaksi-pajak-list'),
     path('transaksi-pajak/<int:pk>/', TransaksiPajakDetailView.as_view(), name='transaksi-pajak-detail'),
     path('transaksi-pajak/filter-options/', TransaksiPajakFilterOptionsView.as_view(), name='transaksi-pajak-filter-options'),
+    path('transaksi-pajak/bulk-delete/', TransaksiPajakBulkDeleteView.as_view(), name='transaksi-pajak-bulk-delete'),
     
     # Agregat Pendapatan Bulanan (Read-only + Regenerate)
     path('agregat-pendapatan-bulanan/', AgregatPendapatanBulananListView.as_view(), name='agregat-pendapatan-bulanan-list'),
@@ -96,8 +95,4 @@ urlpatterns = [
     path('prediksi/compare/', ComparePrediksiView.as_view(), name='prediksi-compare'),
     path('prediksi/hybrid/generate/', HybridPrediksiView.as_view(), name='prediksi-hybrid-generate'),
     
-    # Laporan Total Pajak
-    path('laporan-total-pajak/', LaporanTotalPajakView.as_view(), name='laporan-total-pajak'),
-    path('laporan-total-pajak/summary/', LaporanTotalPajakSummaryView.as_view(), name='laporan-total-pajak-summary'),
-    path('laporan-total-pajak/filter-options/', LaporanTotalPajakFilterOptionsView.as_view(), name='laporan-total-pajak-filter-options'),
     ]

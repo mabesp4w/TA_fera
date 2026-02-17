@@ -16,14 +16,14 @@ from crud.utils.permissions import IsAdmin
 class GeneratePrediksiView(APIView):
     """
     API endpoint untuk generate prediksi menggunakan Exponential Smoothing
-    POST: Generate prediksi baru dan simpan ke database
+    POST: Generate prediksi baru (opsional simpan ke database)
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def post(self, request):
         """
         Generate prediksi baru
-        
+
         Body:
         {
             "metode": "SES" | "DES" | "TES",
@@ -35,6 +35,7 @@ class GeneratePrediksiView(APIView):
             "gamma": float (optional),
             "seasonal_periods": int (optional, default: 12),
             "optimize": bool (optional, default: true),
+            "save_to_db": bool (optional, default: false),
             "keterangan": string (optional)
         }
         """
@@ -48,8 +49,9 @@ class GeneratePrediksiView(APIView):
             gamma = request.data.get('gamma')
             seasonal_periods = request.data.get('seasonal_periods', 12)
             optimize = request.data.get('optimize', True)
+            save_to_db = request.data.get('save_to_db', False)
             keterangan = request.data.get('keterangan', '')
-            
+
             # Validasi
             if not tahun_prediksi or not bulan_prediksi:
                 return APIResponse.error(
@@ -110,39 +112,46 @@ class GeneratePrediksiView(APIView):
             )
             
             if actual_value:
-                result['nilai_aktual'] = actual_value
-                result['error_absolut'] = abs(result['nilai_prediksi'] - actual_value)
-                result['error_persentase'] = (result['error_absolut'] / actual_value * 100) if actual_value > 0 else 0
+                # Konversi ke float untuk menghindari error Decimal - float
+                prediksi_float = float(result['nilai_prediksi'])
+                actual_float = float(actual_value)
+                result['nilai_aktual'] = actual_float
+                result['error_absolut'] = abs(prediksi_float - actual_float)
+                result['error_persentase'] = (result['error_absolut'] / actual_float * 100) if actual_float > 0 else 0
                 result['akurasi'] = 100 - result['error_persentase']
             
-            # Save to database
-            hasil_prediksi = HasilPrediksi.objects.create(
-                jenis_kendaraan=jenis_kendaraan,
-                tahun_prediksi=tahun_prediksi,
-                bulan_prediksi=bulan_prediksi,
-                metode=metode,
-                nilai_prediksi=result['nilai_prediksi'],
-                alpha=result.get('alpha', 0),
-                beta=result.get('beta', 0),
-                gamma=result.get('gamma', 0),
-                seasonal_periods=result.get('seasonal_periods', 12),
-                mape=result.get('mape'),
-                mae=result.get('mae'),
-                rmse=result.get('rmse'),
-                nilai_aktual=actual_value,
-                data_training_dari=result.get('data_training_dari'),
-                data_training_sampai=result.get('data_training_sampai'),
-                jumlah_data_training=result.get('jumlah_data_training'),
-                keterangan=keterangan or result.get('keterangan', '')
-            )
-            
-            result['id'] = hasil_prediksi.id
-            result['created_at'] = hasil_prediksi.created_at
-            
+            # Save to database hanya jika save_to_db = True
+            if save_to_db:
+                hasil_prediksi = HasilPrediksi.objects.create(
+                    jenis_kendaraan=jenis_kendaraan,
+                    tahun_prediksi=tahun_prediksi,
+                    bulan_prediksi=bulan_prediksi,
+                    metode=metode,
+                    nilai_prediksi=result['nilai_prediksi'],
+                    alpha=result.get('alpha', 0),
+                    beta=result.get('beta', 0),
+                    gamma=result.get('gamma', 0),
+                    seasonal_periods=result.get('seasonal_periods', 12),
+                    mape=result.get('mape'),
+                    mae=result.get('mae'),
+                    rmse=result.get('rmse'),
+                    nilai_aktual=actual_value,
+                    data_training_dari=result.get('data_training_dari'),
+                    data_training_sampai=result.get('data_training_sampai'),
+                    jumlah_data_training=result.get('jumlah_data_training'),
+                    keterangan=keterangan or result.get('keterangan', '')
+                )
+
+                result['id'] = hasil_prediksi.id
+                result['created_at'] = hasil_prediksi.tanggal_prediksi
+            else:
+                result['id'] = None
+                result['created_at'] = None
+
             return APIResponse.success(
                 data=result,
-                message=f'Prediksi {metode} berhasil dibuat',
-                status_code=status.HTTP_201_CREATED
+                message=f'Prediksi {metode} berhasil dihasilkan',
+                status_code=status.HTTP_200_OK
             )
             
         except Exception as e:
@@ -245,11 +254,12 @@ class ComparePrediksiView(APIView):
             if actual_value:
                 for key in results:
                     if 'error' not in results[key]:
-                        prediksi = results[key]['nilai_prediksi']
-                        results[key]['error_absolut'] = abs(prediksi - actual_value)
-                        results[key]['error_persentase'] = (results[key]['error_absolut'] / actual_value * 100) if actual_value > 0 else 0
+                        prediksi = float(results[key]['nilai_prediksi'])
+                        actual_float = float(actual_value)
+                        results[key]['nilai_aktual'] = actual_float
+                        results[key]['error_absolut'] = abs(prediksi - actual_float)
+                        results[key]['error_persentase'] = (results[key]['error_absolut'] / actual_float * 100) if actual_float > 0 else 0
                         results[key]['akurasi'] = 100 - results[key]['error_persentase']
-                        results[key]['nilai_aktual'] = actual_value
             
             # Find best metode (lowest error)
             if actual_value:
@@ -360,7 +370,7 @@ class HybridPrediksiView(APIView):
                 )
                 
                 result['id'] = hasil_prediksi.id
-                result['created_at'] = hasil_prediksi.created_at
+                result['created_at'] = hasil_prediksi.tanggal_prediksi
             
             return APIResponse.success(
                 data=result,

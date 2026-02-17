@@ -25,7 +25,8 @@ from .data_pajak_kendaraan_view import DataPajakKendaraanListView, DataPajakKend
 from .transaksi_pajak_view import (
     TransaksiPajakListView,
     TransaksiPajakDetailView,
-    TransaksiPajakFilterOptionsView
+    TransaksiPajakFilterOptionsView,
+    TransaksiPajakBulkDeleteView
 )
 from .agregat_pendapatan_bulanan_view import (
     AgregatPendapatanBulananListView,
@@ -39,11 +40,6 @@ from .prediksi_view import (
     GeneratePrediksiView,
     ComparePrediksiView,
     HybridPrediksiView
-)
-from .laporan_total_pajak_view import (
-    LaporanTotalPajakView,
-    LaporanTotalPajakSummaryView,
-    LaporanTotalPajakFilterOptionsView
 )
 
 

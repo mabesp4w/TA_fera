@@ -293,7 +293,7 @@ class TransaksiPajakFilterOptionsView(APIView):
     GET: Get list tahun dan bulan yang tersedia di database
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def get(self, request):
         """
         Get filter options untuk transaksi pajak
@@ -302,7 +302,7 @@ class TransaksiPajakFilterOptionsView(APIView):
             # Get unique tahun yang tersedia di database
             tahun_list = TransaksiPajak.objects.values_list('tahun', flat=True).distinct().order_by('-tahun')
             tahun_options = [{'value': t, 'label': str(t)} for t in tahun_list]
-            
+
             # Get unique bulan yang tersedia di database
             bulan_list = TransaksiPajak.objects.values_list('bulan', flat=True).distinct().order_by('bulan')
             bulan_names = {
@@ -311,7 +311,7 @@ class TransaksiPajakFilterOptionsView(APIView):
                 9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
             }
             bulan_options = [{'value': b, 'label': bulan_names.get(b, str(b))} for b in bulan_list]
-            
+
             return APIResponse.success(
                 data={
                     'tahun_options': tahun_options,
@@ -319,10 +319,126 @@ class TransaksiPajakFilterOptionsView(APIView):
                 },
                 message='Filter options berhasil diambil'
             )
-            
+
         except Exception as e:
             return APIResponse.error(
                 message='Terjadi kesalahan saat mengambil filter options',
+                errors=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TransaksiPajakBulkDeleteView(APIView):
+    """
+    API endpoint untuk menghapus multiple transaksi pajak berdasarkan filter
+    DELETE: Delete transaksi pajak berdasarkan filter (tahun, bulan, jenis_kendaraan)
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def delete(self, request):
+        """
+        Hapus transaksi pajak berdasarkan filter
+        Query parameters:
+        - tahun: Filter tahun pajak (WAJIB)
+        - bulan: Filter bulan pajak
+        - jenis_kendaraan_id: Filter jenis kendaraan
+        Minimal: tahun + bulan, atau tahun + jenis_kendaraan_id
+        """
+        try:
+            # Get query parameters
+            tahun = request.query_params.get('tahun', '')
+            bulan = request.query_params.get('bulan', '')
+            jenis_kendaraan_id = request.query_params.get('jenis_kendaraan_id', '')
+
+            # Validasi: tahun WAJIB terisi
+            if not tahun:
+                return APIResponse.error(
+                    message='Filter tahun wajib diisi',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validasi: minimal tahun + bulan atau tahun + jenis_kendaraan_id
+            if not bulan and not jenis_kendaraan_id:
+                return APIResponse.error(
+                    message='Minimal filter bulan atau jenis kendaraan harus diisi bersamaan dengan tahun',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Build queryset dengan filter
+            queryset = TransaksiPajak.objects.all()
+
+            # Filter by tahun
+            if tahun:
+                try:
+                    tahun_int = int(tahun)
+                    queryset = queryset.filter(tahun=tahun_int)
+                except (ValueError, TypeError):
+                    return APIResponse.error(
+                        message='Filter tahun tidak valid',
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Filter by bulan
+            if bulan:
+                try:
+                    bulan_int = int(bulan)
+                    queryset = queryset.filter(bulan=bulan_int)
+                except (ValueError, TypeError):
+                    return APIResponse.error(
+                        message='Filter bulan tidak valid',
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Filter by jenis_kendaraan_id
+            if jenis_kendaraan_id:
+                try:
+                    jenis_id_int = int(jenis_kendaraan_id)
+                    queryset = queryset.filter(kendaraan__jenis_id=jenis_id_int)
+                except (ValueError, TypeError):
+                    return APIResponse.error(
+                        message='Filter jenis kendaraan tidak valid',
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Hitung jumlah data yang akan dihapus
+            count = queryset.count()
+
+            if count == 0:
+                return APIResponse.error(
+                    message='Tidak ada data transaksi yang sesuai dengan filter',
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+
+            # Hapus semua data yang sesuai filter
+            deleted_count, _ = queryset.delete()
+
+            # Buat deskripsi filter untuk pesan response
+            filter_desc = []
+            if tahun:
+                filter_desc.append(f'tahun {tahun}')
+            if bulan:
+                bulan_names = {
+                    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+                    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+                    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+                }
+                filter_desc.append(f'bulan {bulan_names.get(int(bulan), bulan)}')
+            if jenis_kendaraan_id:
+                filter_desc.append(f'jenis kendaraan ID {jenis_kendaraan_id}')
+
+            filter_str = ', '.join(filter_desc)
+
+            return APIResponse.success(
+                data={
+                    'deleted_count': deleted_count
+                },
+                message=f'Berhasil menghapus {deleted_count} transaksi pajak dengan filter {filter_str}',
+                status_code=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return APIResponse.error(
+                message='Terjadi kesalahan saat menghapus transaksi pajak',
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

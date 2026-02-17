@@ -441,5 +441,5 @@ class HasilPrediksi(models.Model):
     def selisih(self):
         """Menghitung selisih antara aktual dan prediksi"""
         if self.nilai_aktual:
-            return float(self.nilai_aktual - self.nilai_prediksi)
+            return float(float(self.nilai_aktual) - float(self.nilai_prediksi))
         return None
