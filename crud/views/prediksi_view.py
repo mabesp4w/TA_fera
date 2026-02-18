@@ -10,15 +10,15 @@ from crud.serializers.hasil_prediksi_serializer import HasilPrediksiSerializer
 from crud.services.prediction_service import PredictionService
 from crud.services.hybrid_prediction_service import HybridPredictionService
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 
 
 class GeneratePrediksiView(APIView):
     """
     API endpoint untuk generate prediksi menggunakan Exponential Smoothing
-    POST: Generate prediksi baru (opsional simpan ke database)
+    POST: Generate prediksi baru (opsional simpan ke database) - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
 
     def post(self, request):
         """
@@ -165,9 +165,9 @@ class GeneratePrediksiView(APIView):
 class ComparePrediksiView(APIView):
     """
     API endpoint untuk membandingkan semua metode prediksi
-    GET: Membandingkan SES, DES, dan TES
+    GET: Membandingkan SES, DES, TES, dan Hybrid - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -291,8 +291,9 @@ class HybridPrediksiView(APIView):
     """
     API endpoint untuk prediksi menggunakan Hybrid Approach
     Menggabungkan TES + Business Rules + Monthly MAPE
+    POST: Generate prediksi hybrid - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def post(self, request):
         """

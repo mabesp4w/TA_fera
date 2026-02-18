@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from myauth.models import User
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 from django.db.models import Count, Sum, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -45,10 +45,10 @@ from .prediksi_view import (
 
 class DashboardView(APIView):
     """
-    API endpoint untuk dashboard admin
+    API endpoint untuk dashboard admin dan pimpinan
     Menampilkan statistik dan data ringkasan sistem
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
 
     def get(self, request):
         try:

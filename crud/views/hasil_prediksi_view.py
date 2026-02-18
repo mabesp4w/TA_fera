@@ -7,16 +7,16 @@ from django.db.models import Q
 from crud.models import HasilPrediksi
 from crud.serializers.hasil_prediksi_serializer import HasilPrediksiSerializer
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 
 
 class HasilPrediksiListView(APIView):
     """
     API endpoint untuk list dan create HasilPrediksi
-    GET: List semua hasil prediksi (dengan pagination dan search)
-    POST: Create hasil prediksi baru
+    GET: List semua hasil prediksi (dengan pagination dan search) - Admin & Pimpinan
+    POST: Create hasil prediksi baru - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -113,12 +113,10 @@ class HasilPrediksiListView(APIView):
 class HasilPrediksiDetailView(APIView):
     """
     API endpoint untuk detail, update, dan delete HasilPrediksi
-    GET: Get detail hasil prediksi
-    PUT: Update hasil prediksi
-    PATCH: Partial update hasil prediksi (untuk update nilai_aktual)
-    DELETE: Delete hasil prediksi
+    GET: Get detail hasil prediksi - Admin & Pimpinan
+    PUT/PATCH/DELETE: Modifikasi - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get_object(self, pk):
         """

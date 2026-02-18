@@ -20,3 +20,24 @@ class IsAdmin(permissions.BasePermission):
             request.user.is_staff
         )
 
+
+class IsAdminOrPimpinan(permissions.BasePermission):
+    """
+    Permission class untuk memastikan hanya admin atau pimpinan yang bisa akses
+    Digunakan untuk endpoint dashboard dan laporan
+    """
+    message = 'Hanya admin atau Kepala UPPD/SAMSAT yang dapat mengakses endpoint ini.'
+
+    def has_permission(self, request, view):
+        # Cek apakah user sudah login
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Cek apakah user adalah admin atau pimpinan
+        return (
+            request.user.role == 'admin' or 
+            request.user.role == 'pimpinan' or
+            request.user.is_superuser or 
+            request.user.is_staff
+        )
+

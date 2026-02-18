@@ -7,16 +7,16 @@ from django.db.models import Q
 from crud.models import JenisKendaraan
 from crud.serializers.jenis_kendaraan_serializer import JenisKendaraanSerializer
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 
 
 class JenisKendaraanListView(APIView):
     """
     API endpoint untuk list dan create JenisKendaraan
-    GET: List semua jenis kendaraan (dengan pagination dan search)
-    POST: Create jenis kendaraan baru
+    GET: List semua jenis kendaraan (dengan pagination dan search) - Admin & Pimpinan
+    POST: Create jenis kendaraan baru - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -103,12 +103,10 @@ class JenisKendaraanListView(APIView):
 class JenisKendaraanDetailView(APIView):
     """
     API endpoint untuk detail, update, dan delete JenisKendaraan
-    GET: Get detail jenis kendaraan
-    PUT: Update jenis kendaraan
-    PATCH: Partial update jenis kendaraan
-    DELETE: Delete jenis kendaraan
+    GET: Get detail jenis kendaraan - Admin & Pimpinan
+    PUT/PATCH/DELETE: Modifikasi - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get_object(self, pk):
         """

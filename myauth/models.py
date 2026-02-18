@@ -7,7 +7,8 @@ class User(AbstractUser):
     Custom User model dengan field tambahan role dan show_password
     """
     ROLE_CHOICES = [
-        ('admin', 'Admin'),
+        ('admin', 'Administrator'),
+        ('pimpinan', 'Kepala UPPD/SAMSAT'),
         ('manager', 'Manager'),
         ('user', 'User'),
         ('staff', 'Staff'),

@@ -8,16 +8,16 @@ from django.db import transaction
 from crud.models import AgregatPendapatanBulanan, TransaksiPajak, JenisKendaraan
 from crud.serializers.agregat_pendapatan_bulanan_serializer import AgregatPendapatanBulananSerializer
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 from decimal import Decimal
 
 
 class AgregatPendapatanBulananListView(APIView):
     """
     API endpoint untuk list AgregatPendapatanBulanan (Read-only)
-    GET: List semua agregat pendapatan bulanan
+    GET: List semua agregat pendapatan bulanan - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -84,9 +84,9 @@ class AgregatPendapatanBulananListView(APIView):
 class AgregatPendapatanBulananDetailView(APIView):
     """
     API endpoint untuk detail AgregatPendapatanBulanan (Read-only)
-    GET: Get detail agregat pendapatan bulanan
+    GET: Get detail agregat pendapatan bulanan - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get_object(self, pk):
         """
@@ -307,9 +307,9 @@ class AgregatPendapatanBulananRegenerateView(APIView):
 class AgregatPendapatanBulananFilterOptionsView(APIView):
     """
     API endpoint untuk mendapatkan filter options (tahun dan bulan)
-    GET: Get list tahun dan bulan yang tersedia di database
+    GET: Get list tahun dan bulan yang tersedia di database - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -352,9 +352,9 @@ class AgregatPendapatanBulananFilterOptionsView(APIView):
 class AgregatPendapatanBulananSummaryView(APIView):
     """
     API endpoint untuk summary agregat pendapatan bulanan
-    GET: Get summary total dari seluruh data (tanpa pagination)
+    GET: Get summary total dari seluruh data (tanpa pagination) - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """

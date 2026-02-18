@@ -8,16 +8,16 @@ from datetime import datetime
 from crud.models import TransaksiPajak
 from crud.serializers.transaksi_pajak_serializer import TransaksiPajakSerializer
 from crud.utils.response import APIResponse
-from crud.utils.permissions import IsAdmin
+from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 
 
 class TransaksiPajakListView(APIView):
     """
     API endpoint untuk list dan create TransaksiPajak
-    GET: List semua transaksi pajak (dengan pagination dan search)
-    POST: Create transaksi pajak baru
+    GET: List semua transaksi pajak (dengan pagination dan search) - Admin & Pimpinan
+    POST: Create transaksi pajak baru - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get(self, request):
         """
@@ -140,12 +140,10 @@ class TransaksiPajakListView(APIView):
 class TransaksiPajakDetailView(APIView):
     """
     API endpoint untuk detail, update, dan delete TransaksiPajak
-    GET: Get detail transaksi pajak
-    PUT: Update transaksi pajak
-    PATCH: Partial update transaksi pajak
-    DELETE: Delete transaksi pajak
+    GET: Get detail transaksi pajak - Admin & Pimpinan
+    PUT/PATCH/DELETE: Modifikasi - Admin only
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
     
     def get_object(self, pk):
         """
@@ -290,9 +288,9 @@ class TransaksiPajakDetailView(APIView):
 class TransaksiPajakFilterOptionsView(APIView):
     """
     API endpoint untuk mendapatkan filter options (tahun dan bulan)
-    GET: Get list tahun dan bulan yang tersedia di database
+    GET: Get list tahun dan bulan yang tersedia di database - Admin & Pimpinan
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
 
     def get(self, request):
         """
