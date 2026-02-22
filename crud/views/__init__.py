@@ -37,6 +37,7 @@ from .agregat_pendapatan_bulanan_view import (
 )
 from .hasil_prediksi_view import HasilPrediksiListView, HasilPrediksiDetailView
 from .prediksi_view import (
+    CheckDataView,
     GeneratePrediksiView,
     ComparePrediksiView,
     HybridPrediksiView

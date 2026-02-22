@@ -29,6 +29,7 @@ from .views import (
     AgregatPendapatanBulananSummaryView,
     HasilPrediksiListView,
     HasilPrediksiDetailView,
+    CheckDataView,
     GeneratePrediksiView,
     ComparePrediksiView,
     HybridPrediksiView,
@@ -91,6 +92,7 @@ urlpatterns = [
     path('hasil-prediksi/<int:pk>/', HasilPrediksiDetailView.as_view(), name='hasil-prediksi-detail'),
     
     # Prediksi Endpoints
+    path('prediksi/check-data/', CheckDataView.as_view(), name='prediksi-check-data'),
     path('prediksi/generate/', GeneratePrediksiView.as_view(), name='prediksi-generate'),
     path('prediksi/compare/', ComparePrediksiView.as_view(), name='prediksi-compare'),
     path('prediksi/hybrid/generate/', HybridPrediksiView.as_view(), name='prediksi-hybrid-generate'),

@@ -13,6 +13,83 @@ from crud.utils.response import APIResponse
 from crud.utils.permissions import IsAdmin, IsAdminOrPimpinan
 
 
+class CheckDataView(APIView):
+    """
+    API endpoint untuk mengecek ketersediaan data historis sebelum prediksi
+    GET: Cek jumlah data tersedia untuk jenis kendaraan tertentu
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrPimpinan]
+
+    def get(self, request):
+        """
+        Cek ketersediaan data historis
+
+        Query params:
+        - jenis_kendaraan_id: int (optional)
+        """
+        try:
+            jenis_kendaraan_id = request.query_params.get('jenis_kendaraan_id')
+
+            # Ambil data historis
+            historical_data = PredictionService.get_historical_data(
+                jenis_kendaraan_id=jenis_kendaraan_id,
+                min_periods=0  # Tidak throw error jika data kurang
+            )
+
+            jumlah_data = len(historical_data)
+
+            # Tentukan metode yang bisa digunakan
+            available_methods = []
+            if jumlah_data >= 24:
+                available_methods.append('TES')
+            if jumlah_data >= 6:
+                available_methods.append('DES')
+            if jumlah_data >= 3:
+                available_methods.append('SES')
+
+            # Cek apakah data cukup untuk hybrid
+            hybrid_available = jumlah_data >= 3
+
+            # Informasi periode data
+            periode_info = {
+                'jumlah_data': jumlah_data,
+                'data_dari': f"{historical_data[0]['tahun']}-{historical_data[0]['bulan']:02d}" if historical_data else None,
+                'data_sampai': f"{historical_data[-1]['tahun']}-{historical_data[-1]['bulan']:02d}" if historical_data else None,
+            }
+
+            return APIResponse.success(
+                data={
+                    **periode_info,
+                    'available_methods': available_methods,
+                    'ses_available': jumlah_data >= 12,
+                    'des_available': jumlah_data >= 3,
+                    'tes_available': jumlah_data >= 24,
+                    'hybrid_available': hybrid_available,
+                    'recommendation': self._get_recommendation(jumlah_data, available_methods)
+                },
+                message='Data historis berhasil diambil'
+            )
+
+        except Exception as e:
+            return APIResponse.error(
+                message='Terjadi kesalahan saat mengecek data',
+                errors=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _get_recommendation(self, jumlah_data: int, available_methods: list) -> str:
+        """Dapatkan rekomendasi metode berdasarkan jumlah data"""
+        if jumlah_data < 3:
+            return "Data sangat terbatas. Tambahkan minimal 3 periode data untuk prediksi."
+        elif jumlah_data < 12:
+            return f"Data tersedia {jumlah_data} periode. Gunakan DES (3+ periode) untuk hasil terbaik."
+        elif jumlah_data < 24:
+            methods_str = " atau ".join(available_methods)
+            return f"Data tersedia {jumlah_data} periode. Gunakan {methods_str} (sesuai kebutuhan)."
+        else:
+            return f"Data tersedia {jumlah_data} periode. Semua metode (SES, DES, TES, Hybrid) dapat digunakan."
+
+
 class GeneratePrediksiView(APIView):
     """
     API endpoint untuk generate prediksi menggunakan Exponential Smoothing
@@ -36,7 +113,8 @@ class GeneratePrediksiView(APIView):
             "seasonal_periods": int (optional, default: 12),
             "optimize": bool (optional, default: true),
             "save_to_db": bool (optional, default: false),
-            "keterangan": string (optional)
+            "keterangan": string (optional),
+            "prediction_data": dict (optional, data prediksi yang sudah di-generate sebelumnya)
         }
         """
         try:
@@ -51,6 +129,7 @@ class GeneratePrediksiView(APIView):
             optimize = request.data.get('optimize', True)
             save_to_db = request.data.get('save_to_db', False)
             keterangan = request.data.get('keterangan', '')
+            prediction_data = request.data.get('prediction_data')
 
             # Validasi
             if not tahun_prediksi or not bulan_prediksi:
@@ -76,7 +155,40 @@ class GeneratePrediksiView(APIView):
                         status_code=status.HTTP_404_NOT_FOUND
                     )
             
-            # Generate prediction
+            # Jika save_to_db dan prediction_data dikirim, simpan langsung tanpa generate ulang
+            if save_to_db and prediction_data:
+                hasil_prediksi = HasilPrediksi.objects.create(
+                    jenis_kendaraan=jenis_kendaraan,
+                    tahun_prediksi=tahun_prediksi,
+                    bulan_prediksi=bulan_prediksi,
+                    metode=metode,
+                    nilai_prediksi=prediction_data['nilai_prediksi'],
+                    alpha=prediction_data.get('alpha', 0),
+                    beta=prediction_data.get('beta', 0),
+                    gamma=prediction_data.get('gamma', 0),
+                    seasonal_periods=prediction_data.get('seasonal_periods', 12),
+                    mape=prediction_data.get('mape'),
+                    mae=prediction_data.get('mae'),
+                    rmse=prediction_data.get('rmse'),
+                    nilai_aktual=prediction_data.get('nilai_aktual'),
+                    data_training_dari=prediction_data.get('data_training_dari'),
+                    data_training_sampai=prediction_data.get('data_training_sampai'),
+                    jumlah_data_training=prediction_data.get('jumlah_data_training'),
+                    keterangan=keterangan or prediction_data.get('keterangan', '')
+                )
+
+                # Kembalikan data prediksi yang sama (tidak berubah) dengan tambahan id
+                result = prediction_data.copy() if isinstance(prediction_data, dict) else dict(prediction_data)
+                result['id'] = hasil_prediksi.id
+                result['created_at'] = hasil_prediksi.tanggal_prediksi
+
+                return APIResponse.success(
+                    data=result,
+                    message=f'Prediksi {metode} berhasil disimpan',
+                    status_code=status.HTTP_200_OK
+                )
+            
+            # Generate prediction (hanya jika bukan save dengan data existing)
             if metode == 'SES':
                 result = PredictionService.predict_ses(
                     jenis_kendaraan_id=jenis_kendaraan_id,
@@ -120,7 +232,7 @@ class GeneratePrediksiView(APIView):
                 result['error_persentase'] = (result['error_absolut'] / actual_float * 100) if actual_float > 0 else 0
                 result['akurasi'] = 100 - result['error_persentase']
             
-            # Save to database hanya jika save_to_db = True
+            # Save to database hanya jika save_to_db = True (tanpa prediction_data = generate + save)
             if save_to_db:
                 hasil_prediksi = HasilPrediksi.objects.create(
                     jenis_kendaraan=jenis_kendaraan,
@@ -306,7 +418,8 @@ class HybridPrediksiView(APIView):
             "bulan_prediksi": int,
             "training_periods": int (optional, default: 24),
             "selected_scenario": str (optional, default: "base"),
-            "save_to_db": bool (optional, default: false)
+            "save_to_db": bool (optional, default: false),
+            "prediction_data": dict (optional, data prediksi yang sudah di-generate sebelumnya)
         }
         """
         try:
@@ -316,6 +429,7 @@ class HybridPrediksiView(APIView):
             training_periods = request.data.get('training_periods', 24)
             selected_scenario = request.data.get('selected_scenario', 'base')
             save_to_db = request.data.get('save_to_db', False)
+            prediction_data = request.data.get('prediction_data')
             
             # Validasi
             if not tahun_prediksi or not bulan_prediksi:
@@ -338,7 +452,41 @@ class HybridPrediksiView(APIView):
                         status_code=status.HTTP_404_NOT_FOUND
                     )
             
-            # Generate hybrid prediction
+            # Jika save_to_db dan prediction_data dikirim, simpan langsung tanpa generate ulang
+            if save_to_db and prediction_data:
+                tes_params = prediction_data.get('tes_parameters', {})
+                hasil_prediksi = HasilPrediksi.objects.create(
+                    jenis_kendaraan=jenis_kendaraan,
+                    tahun_prediksi=tahun_prediksi,
+                    bulan_prediksi=bulan_prediksi,
+                    metode=f'HYBRID_{selected_scenario.upper()}',
+                    nilai_prediksi=prediction_data['nilai_prediksi'],
+                    alpha=tes_params.get('alpha', 0),
+                    beta=tes_params.get('beta', 0),
+                    gamma=tes_params.get('gamma', 0),
+                    seasonal_periods=12,
+                    mape=prediction_data.get('mape'),
+                    mae=prediction_data.get('mae'),
+                    rmse=prediction_data.get('rmse'),
+                    nilai_aktual=prediction_data.get('nilai_aktual'),
+                    data_training_dari=prediction_data.get('data_training_dari'),
+                    data_training_sampai=prediction_data.get('data_training_sampai'),
+                    jumlah_data_training=prediction_data.get('jumlah_data_training'),
+                    keterangan=prediction_data.get('keterangan', '')
+                )
+                
+                # Kembalikan data prediksi yang sama (tidak berubah) dengan tambahan id
+                result = prediction_data.copy() if isinstance(prediction_data, dict) else dict(prediction_data)
+                result['id'] = hasil_prediksi.id
+                result['created_at'] = hasil_prediksi.tanggal_prediksi
+                
+                return APIResponse.success(
+                    data=result,
+                    message='Prediksi hybrid berhasil disimpan',
+                    status_code=status.HTTP_200_OK
+                )
+            
+            # Generate hybrid prediction (hanya jika bukan save dengan data existing)
             result = HybridPredictionService.predict_hybrid(
                 tahun_prediksi=tahun_prediksi,
                 bulan_prediksi=bulan_prediksi,
@@ -348,7 +496,7 @@ class HybridPrediksiView(APIView):
                 return_details=True
             )
             
-            # Save to database jika diminta
+            # Save to database jika diminta (tanpa prediction_data = generate + save)
             if save_to_db:
                 hasil_prediksi = HasilPrediksi.objects.create(
                     jenis_kendaraan=jenis_kendaraan,

@@ -384,14 +384,18 @@ class HasilPrediksi(models.Model):
         ('SES', 'Simple Exponential Smoothing'),
         ('DES', 'Double Exponential Smoothing (Holt)'),
         ('TES', 'Triple Exponential Smoothing (Holt-Winters)'),
+        ('HYBRID_CONSERVATIVE', 'Hybrid - Conservative Scenario'),
+        ('HYBRID_BASE', 'Hybrid - Base Scenario'),
+        ('HYBRID_MODERATE', 'Hybrid - Moderate Scenario'),
+        ('HYBRID_OPTIMISTIC', 'Hybrid - Optimistic Scenario'),
     ]
-    
+
     # Periode Prediksi
     tahun_prediksi = models.IntegerField(db_index=True)
     bulan_prediksi = models.IntegerField(db_index=True)
-    
+
     # Metode
-    metode = models.CharField(max_length=10, choices=METODE_CHOICES)
+    metode = models.CharField(max_length=20, choices=METODE_CHOICES)
     
     # Hasil Prediksi
     nilai_prediksi = models.DecimalField(max_digits=20, decimal_places=2)

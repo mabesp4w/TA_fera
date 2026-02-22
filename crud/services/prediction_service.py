@@ -109,37 +109,46 @@ class PredictionService:
         
         # Jika data agregat tidak cukup atau use_realtime=True, coba ambil dari TransaksiPajak
         if len(data) < min_periods or use_realtime:
-            transaksi_filter = {}
+            # Filter lebih akurat menggunakan Q objects untuk tahun dan bulan
+            transaksi_q = Q()
+
             if start_date:
-                transaksi_filter['tahun__gte'] = start_date.year
+                transaksi_q &= Q(tahun__gt=start_date.year) | (Q(tahun=start_date.year) & Q(bulan__gte=start_date.month))
+
             if end_date:
-                transaksi_filter['tahun__lte'] = end_date.year
-            
+                transaksi_q &= Q(tahun__lt=end_date.year) | (Q(tahun=end_date.year) & Q(bulan__lte=end_date.month))
+
             transaksi_queryset = TransaksiPajak.objects.values(
                 'tahun', 'bulan'
             ).annotate(
                 total_pendapatan=Sum('total_bayar')
             ).order_by('tahun', 'bulan')
-            
-            if transaksi_filter:
-                transaksi_queryset = transaksi_queryset.filter(**transaksi_filter)
-            
+
+            if transaksi_q:
+                transaksi_queryset = transaksi_queryset.filter(transaksi_q)
+
             if jenis_kendaraan_id is not None:
                 transaksi_queryset = transaksi_queryset.filter(kendaraan__jenis_id=jenis_kendaraan_id)
-            
+
             realtime_data = []
             for item in transaksi_queryset:
+                # Filter data tambahan untuk memastikan range tanggal benar
+                item_date = date(item['tahun'], item['bulan'], 1)
+                if start_date and item_date < start_date:
+                    continue
+                if end_date and item_date > end_date:
+                    continue
                 realtime_data.append({
                     'tahun': item['tahun'],
                     'bulan': item['bulan'],
                     'total_pendapatan': float(item['total_pendapatan'] or 0),
                     'jenis_kendaraan_id': jenis_kendaraan_id
                 })
-            
+
             # Gunakan realtime data jika lebih lengkap
             if len(realtime_data) > len(data):
                 data = realtime_data
-            
+
             # Aggregate jika jenis_kendaraan_id is None
             if jenis_kendaraan_id is None and data:
                 from collections import defaultdict
@@ -147,7 +156,7 @@ class PredictionService:
                 for item in data:
                     key = (item['tahun'], item['bulan'])
                     aggregated[key] += item['total_pendapatan']
-                
+
                 data = []
                 for (tahun, bulan), total in sorted(aggregated.items()):
                     data.append({
